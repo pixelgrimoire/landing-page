@@ -2,62 +2,66 @@
 
 import { useEffect, useRef } from 'react';
 
+// Paletas de colores para las llamas y las chispas
+const BLUE_FLAME_COLORS: [number, number, number][] = [
+  [180, 220, 255], // #b4dcff - Cian muy claro
+  [60, 150, 255],  // #3c96ff - Azul brillante
+  [30, 80, 200],   // #1e50c8 - Azul profundo
+];
+
+const GOLD_SPARK_COLORS: [number, number, number][] = [
+  [255, 240, 200], // #fff0c8 - Amarillo pálido
+  [255, 220, 100], // #ffdc64 - Amarillo dorado
+  [250, 180, 50],  // #fab432 - Naranja dorado
+];
+
+// Pequeño factor para que suban un poco más
+const HEIGHT_BOOST = 1.2;
+
+
 export default function BlueFlames({ enabled = true }: { enabled?: boolean }) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rafRef = useRef<number>(0);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const animFrameRef = useRef<number>(0);
+
+  // Usamos refs para las variables que persisten entre renders
+  const particleData = useRef({
+    particles: [] as Particle[],
+    running: true,
+    pixelSize: 5,
+    lastSpawn: 0,
+  }).current;
+
+  type Particle = {
+    x: number; y: number;
+    vx: number; vy: number;
+    life: number; ttl: number;
+    size: number;
+    color: [number, number, number];
+    type: 'flame' | 'spark';
+  };
 
   useEffect(() => {
     if (!enabled) return;
+
     const host = hostRef.current;
-    if (!host) return;
+    const canvas = canvasRef.current;
+    if (!host || !canvas) return;
 
-    const canvas = document.createElement('canvas');
-    canvasRef.current = canvas;
-    host.appendChild(canvas);
-    const ctx = canvas.getContext('2d', { alpha: true })!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // Offscreen low-res buffer for pixelated look
-    const off = document.createElement('canvas');
-    const offCtx = off.getContext('2d', { alpha: true })!;
-
-    let running = true;
-
-    type Particle = { x:number; y:number; vx:number; vy:number; life:number; ttl:number; size:number; hue:number; sat:number; alpha:number };
-    let particles: Particle[] = [];
-
-    const config = {
-      pixel: 5,
-      maxParticles: 55,
-      spawnRate: 5,
-      baseHue: 205,
-      hueJitter: 6,
-      saturation: 76,
-      lightness: 52,
-      gravity: -3.2,
-      drag: 0.998,
-      spread: 0.08,
-      swirl: 0.06,
-      centerAttract: 0.05,   // atracción suave hacia el centro
-      swayAmp: 0.06,         // % del ancho para vaivén lateral
-      swaySpeed: 0.35        // Hz aprox
-    } as const;
-
-    const rand = (a:number, b:number) => a + Math.random()*(b-a);
+    particleData.running = true;
+    particleData.particles = [];
 
     const setSize = () => {
-      const r = host.getBoundingClientRect();
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.max(2, Math.floor(r.width * dpr));
-      canvas.height = Math.max(2, Math.floor(r.height * dpr));
-      canvas.style.width = r.width + 'px';
-      canvas.style.height = r.height + 'px';
-
-      const scale = Math.max(1, Math.floor((r.width / config.pixel) / 64));
-      off.width = Math.max(32, Math.floor(r.width / (config.pixel * scale)));
-      off.height = Math.max(24, Math.floor(r.height / (config.pixel * scale)));
-
-      particles = [];
+      const rect = host.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      particleData.particles = []; // Limpiar partículas al redimensionar
     };
 
     let ro: ResizeObserver | undefined;
@@ -69,104 +73,87 @@ export default function BlueFlames({ enabled = true }: { enabled?: boolean }) {
     }
     setSize();
 
-    const spawn = (dt:number, t:number) => {
-      const toSpawn = Math.min(30, Math.floor(config.spawnRate * dt + Math.random()));
-      const w = off.width;
-      // línea central con vaivén
-      const center = w * (0.5 + config.swayAmp * Math.sin(t * config.swaySpeed * 2*Math.PI));
-      for (let i=0; i<toSpawn && particles.length < config.maxParticles; i++) {
-        const x = center + rand(-w*config.spread*0.08, w*config.spread*0.08);
-        const y = off.height - 2;
-        const p: Particle = {
-          x,
-          y,
-          vx: rand(-config.spread, config.spread) * 0.5,
-          vy: rand(-1.1, -0.5),
+    const spawnParticles = (now: number) => {
+      if (now - particleData.lastSpawn < 50) return; // Limitar tasa de aparición
+      particleData.lastSpawn = now;
+
+      const w = canvas.width;
+      const spawnX = w / 2;
+      const spawnWidth = w * 0.3;
+
+      // Generar partículas de llama
+      for (let i = 0; i < 3; i++) {
+        const type: 'flame' | 'spark' = Math.random() > 0.15 ? 'flame' : 'spark';
+        const colorPalette = type === 'flame' ? BLUE_FLAME_COLORS : GOLD_SPARK_COLORS;
+
+        const particle: Particle = {
+          x: spawnX + (Math.random() - 0.5) * spawnWidth,
+          y: canvas.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: -((Math.random() * 1.5 + 1.0) * HEIGHT_BOOST), // Velocidad ascendente ligeramente mayor
           life: 0,
-          ttl: rand(2.2, 3.8),
-          size: Math.random() < 0.12 ? 3 : 2,
-          hue: config.baseHue + rand(-config.hueJitter, config.hueJitter),
-          sat: config.saturation,
-          alpha: 1,
+          ttl: (Math.random() * 1.5 + 1.0) * HEIGHT_BOOST, // Vida un poco más larga
+          size: particleData.pixelSize * (type === 'spark' ? (Math.random() * 0.5 + 0.75) : (Math.random() * 0.5 + 1)),
+          color: colorPalette[Math.floor(Math.random() * colorPalette.length)],
+          type: type,
         };
-        particles.push(p);
+        particleData.particles.push(particle);
       }
     };
 
-    let last = performance.now();
-    const loop = () => {
-      if (!running) return;
-      const now = performance.now();
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const tsec = now / 1000;
+    const updateAndDrawParticles = (dt: number, now: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'lighter';
 
-      spawn(dt, tsec);
-
-      // update
-      const w = off.width;
-      const center = w * (0.5 + config.swayAmp * Math.sin(tsec * config.swaySpeed * 2*Math.PI));
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
+      for (let i = particleData.particles.length - 1; i >= 0; i--) {
+        const p = particleData.particles[i];
         p.life += dt;
-        if (p.life >= p.ttl) { particles.splice(i,1); continue; }
-        // Física
-        p.vy += (config.gravity / 60) * dt;
-        // atracción suave al centro
-        const dx = (center - p.x);
-        p.vx += (dx * config.centerAttract) * dt;
-        // ligero mecido
-        p.vx += Math.sin((now*0.0012) + i*0.13) * config.swirl * dt;
-        p.vx *= config.drag; p.vy *= config.drag;
-        p.x += p.vx; p.y += p.vy;
-        // desvanecer
-        p.alpha = Math.max(0, 1 - p.life / p.ttl);
-      }
 
-      // render offscreen
-      offCtx.clearRect(0,0,off.width, off.height);
-      offCtx.globalCompositeOperation = 'source-over';
-
-      for (let i=0; i<particles.length; i++) {
-        const p = particles[i];
-        // realzar núcleo cian cerca del centro
-        const d = Math.abs(p.x - center) / (w*0.08 + 1e-6);
-        const core = Math.max(0, 1 - d); // 0..1
-        const hue = p.hue - core * 8; // más cian en el núcleo
-        const l = Math.max(44, Math.min(72, config.lightness + core * 10));
-        offCtx.globalAlpha = Math.pow(p.alpha, 1.7) * (0.9 + 0.1*core);
-        offCtx.fillStyle = `hsl(${hue} ${p.sat}% ${l}%)`;
-        const x = Math.floor(p.x);
-        const y = Math.floor(p.y);
-        const s = p.size;
-        offCtx.fillRect(x, y, s, s);
-        // chispas muy esporádicas
-        if (Math.random() < 0.002) {
-          offCtx.fillRect(x + (Math.random()<0.5?-1:1), y-1, 1, 1);
+        if (p.life >= p.ttl) {
+          particleData.particles.splice(i, 1);
+          continue;
         }
+
+        // Física suave
+        p.x += p.vx * dt * 60;
+        p.y += p.vy * dt * 60;
+        p.vy *= 0.995; // Desaceleración más suave para mantener altura
+        p.vx += Math.sin(now * 0.001 + p.y * 0.1) * 0.05; // Vaivén mágico
+
+        const alpha = 1.0 - (p.life / p.ttl);
+        const [r, g, b] = p.color;
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * alpha * 0.8})`;
+
+        ctx.fillRect(p.x, p.y, p.size, p.size);
       }
-
-      // upscale al canvas visible sin suavizado
-      ctx.clearRect(0,0,canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
-      ctx.globalCompositeOperation = 'screen';
-      ctx.globalAlpha = 0.88;
-      ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, canvas.width, canvas.height);
-
-      rafRef.current = requestAnimationFrame(loop);
     };
 
-    rafRef.current = requestAnimationFrame(loop);
+    let lastTime = performance.now();
+    const loop = (now: number) => {
+      if (!particleData.running) return;
+
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+
+      spawnParticles(now);
+      updateAndDrawParticles(dt, now);
+
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+
+    animFrameRef.current = requestAnimationFrame(loop);
 
     return () => {
-      running = false;
-      cancelAnimationFrame(rafRef.current);
+      particleData.running = false;
+      cancelAnimationFrame(animFrameRef.current);
       if (ro) ro.disconnect(); else window.removeEventListener('resize', setSize);
-      if (host.contains(canvas)) host.removeChild(canvas);
     };
-  }, [enabled]);
+
+  }, [enabled, particleData]);
 
   return (
-    <div ref={hostRef} className="absolute left-1/2 -translate-x-1/2 bottom-2 w-[380px] h-[300px] pointer-events-none mix-blend-screen z-10" aria-hidden />
+      <div ref={hostRef} className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[420px] max-h-[350px] pointer-events-none z-20" aria-hidden>
+        <canvas ref={canvasRef} className="w-full h-full opacity-90" />
+      </div>
   );
 }

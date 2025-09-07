@@ -31,17 +31,17 @@ export default function Hero({ magicEnabled }: { magicEnabled: boolean }) {
           <div className="relative mx-auto max-w-[520px] rounded-xl p-4 pixel-border glass">
             <div className="relative float-slow">
               <div className="absolute -inset-10 -z-10 blur-3xl opacity-30" style={{background:'conic-gradient(from 0deg, #FACC15, #2563EB, #6B21A8, #FACC15)'}}/>
-              <BlueFlames enabled={magicEnabled} />
-              <Image
-                src="/PixelGrimoireSimple.png"
-                alt="Pixel grimoire open with runes"
-                width={1024}
-                height={1024}
-                priority
-                sizes="(max-width: 640px) 100vw, 520px"
-                className="relative z-10 w-full h-auto pixelated select-none"
-              />
-            </div>
+                <BlueFlames enabled={magicEnabled} />
+                <Image
+                  src="/PixelGrimoireSimple.png"
+                  alt="Pixel grimoire open with runes"
+                  width={1024}
+                  height={1024}
+                  priority
+                  sizes="(max-width: 640px) 100vw, 520px"
+                  className="relative z-10 w-full h-auto pixelated select-none"
+                />
+              </div>
             <MagicCircle enabled={magicEnabled} />
           </div>
         </div>
