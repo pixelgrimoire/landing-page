@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import Starfield from '@/components/Starfield';
 import MagicCircle from '@/components/MagicCircle';
 import BlueFlames from '@/components/BlueFlames';
 import { MAIL_TO } from '@/lib/constants';
@@ -9,10 +8,6 @@ import { MAIL_TO } from '@/lib/constants';
 export default function Hero({ magicEnabled }: { magicEnabled: boolean }) {
   return (
     <section className="relative min-h-[92vh] flex items-center">
-      <div className="absolute inset-0 overflow-hidden">
-        <Starfield enabled={magicEnabled} />
-      </div>
-
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-10 items-center">
         <div>
           <h1 className="fade-up text-4xl sm:text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-yellow-100 to-white smooth-font">

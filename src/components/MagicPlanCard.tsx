@@ -27,13 +27,13 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
   const cardStyle: CSSGlowVars = { '--glow': plan.color } as CSSGlowVars;
 
   return (
-    <div ref={ref} className={`magic-card z-30 ${flipped ? 'flipped' : ''}`} style={cardStyle} onClick={(e: React.MouseEvent<HTMLDivElement>)=>{ const isBtn = (e.target as HTMLElement).closest('button'); if(!isBtn) setFlipped(v=>!v); }}>
+    <div ref={ref} className={`glass magic-card z-30 ${flipped ? 'flipped' : ''}`} style={cardStyle} onClick={(e: React.MouseEvent<HTMLDivElement>)=>{ const isBtn = (e.target as HTMLElement).closest('button'); if(!isBtn) setFlipped(v=>!v); }}>
       <div className="magic-inner">
         <div className="magic-pane magic-front pixel-border">
           <div className="w-full">
             <div className="flex items-center justify-between">
               <div className="text-white font-semibold smooth-font">{plan.name}</div>
-              {plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text:black pixel-font">POPULAR</span>}
+              {plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text-black pixel-font">POPULAR</span>}
             </div>
             <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${price}<span className="text-base text-white/60">{suffix}</span></div>
             <ul className="mt-4 space-y-2 text-white/75 text-sm smooth-font">
@@ -61,8 +61,6 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
           </div>
         </div>
       </div>
-      <div className="card-glow"/>
-      <div className="highlight"/>
       <div className="edge-glow"/>
     </div>
   );
