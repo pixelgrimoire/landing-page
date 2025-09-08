@@ -5,16 +5,17 @@ import { useRitualSummon } from "@/components/useRitualSummon";
 
 export default function Work() {
   const items = [
-    { title: 'Nexora POS', desc: 'Punto de venta local‑first con licencia offline y UI pixel.' },
-    { title: 'CoreFoundry', desc: 'Plataforma modular estilo ‘factory sim’ para negocios.' },
-    { title: 'Roblox Worlds', desc: 'Generadores procedurales y UIs retro para experiencias.' },
-    { title: 'Open Source', desc: 'Pequeños hechizos de utilidades para la comunidad.' },
+    {
+      title: 'Qubito POS',
+      desc: 'Demo en desarrollo: Punto de venta local‑first con licencia offline, UI moderna y gestión integral para negocios. (Ver demo)',
+      mockupUrl: '/POS-Qubito.html',
+    },
   ];
 
   const ritual = useRitualSummon({ color: "#818cf8", durationMs: 2200, intensity: 1 });
-  const [selected, setSelected] = useState<{ title: string; desc: string } | null>(null);
+  const [selected, setSelected] = useState<{ title: string; desc: string; mockupUrl?: string } | null>(null);
 
-  const onCardClick = (it: { title: string; desc: string }) => {
+  const onCardClick = (it: { title: string; desc: string; mockupUrl?: string }) => {
     setSelected(it);
     ritual.begin();
   };
@@ -42,9 +43,18 @@ export default function Work() {
       {/* Ritual modal */}
       {ritual.open && (
         <ritual.RitualPortal title={selected?.title ?? "Proyecto"}>
-          <p className="text-zinc-300">
-            {selected?.desc ?? "Detalle del proyecto"}
-          </p>
+          {selected?.mockupUrl ? (
+            <div style={{width: '100%', maxWidth: 1200, height: '70vh', margin: '0 auto'}}>
+              <iframe
+                src={selected.mockupUrl}
+                title="Demo Qubito POS"
+                style={{width: '100%', height: '100%', border: 'none', borderRadius: 12, background: '#f1f5f9'}}
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <p className="text-zinc-300">{selected?.desc ?? "Detalle del proyecto"}</p>
+          )}
         </ritual.RitualPortal>
       )}
     </section>

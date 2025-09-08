@@ -36,6 +36,10 @@ export type RitualPortalProps = {
     showStarfield?: boolean;
     /** Llamado en “Esc” o botón Close del modal */
     onRequestClose?: () => void;
+    /** Ancho del modal (ej. 64rem, 900px). Por defecto: 64rem */
+    modalWidth?: number | string;
+    /** Máximo ancho del modal (por defecto: calc(100vw - 2rem)) */
+    modalMaxWidth?: number | string;
 };
 
 export type UseRitualSummonReturn = {
@@ -313,7 +317,11 @@ export function useRitualSummon(options?: RitualOptions): UseRitualSummonReturn 
                                    showShockwaves = true,
                                    showStarfield = true,
                                    onRequestClose,
+                                   modalWidth,
+                                   modalMaxWidth,
                                }) {
+            const widthValue = typeof modalWidth === "number" ? `${modalWidth}px` : (modalWidth ?? "64rem");
+            const maxWidthValue = typeof modalMaxWidth === "number" ? `${modalMaxWidth}px` : (modalMaxWidth ?? "calc(100vw - 2rem)");
             return (
                 <div
                     ref={rootRef}
@@ -382,7 +390,8 @@ export function useRitualSummon(options?: RitualOptions): UseRitualSummonReturn 
                     {/* Modal */}
                     {stage === "open" && (
                         <div role="dialog" aria-modal
-                             className="absolute mx-4 max-w-xl w-[44rem] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                             className="absolute mx-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                             style={{ width: widthValue, maxWidth: maxWidthValue }}>
                             <div className="relative pointer-events-auto rounded-3xl overflow-hidden ring-1 ring-white/15 shadow-2xl">
                                 <div className="absolute -inset-8 -z-10 opacity-90 mix-blend-screen">
                                     <div className="w-full h-full"
