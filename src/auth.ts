@@ -1,10 +1,12 @@
 import type { NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Auth0 from 'next-auth/providers/auth0';
+import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
 import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   session: { strategy: 'jwt', maxAge: 60 * 60 * 24 },
   trustHost: true,
   providers: [
@@ -38,13 +40,19 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Al iniciar sesión, añade id + stripeCustomerId
+      // Al iniciar sesión, asegura usuario en BD, crea Customer si falta y añade id + stripeCustomerId
       if (user) {
-        const dbUser = await prisma.user.findUnique({ where: { email: user.email || '' } });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.stripeCustomerId = dbUser.stripeCustomerId || null;
-        }
+        // Garantiza que el usuario exista (con adapter debería existir)
+        const dbUser = await prisma.user.upsert({
+          where: { email: user.email || '' },
+          update: { name: user.name || undefined },
+          create: { email: user.email!, name: user.name || undefined },
+        });
+        // Crear/adjuntar Customer en Stripe
+        await ensureStripeCustomerForUser({ userId: dbUser.id, email: dbUser.email, name: dbUser.name, currentCustomerId: dbUser.stripeCustomerId });
+        const refreshed = await prisma.user.findUnique({ where: { id: dbUser.id } });
+        token.id = refreshed?.id;
+        token.stripeCustomerId = refreshed?.stripeCustomerId || null;
       }
       // En cada paso, si tenemos customer, adjunta entitlements
       if (token.stripeCustomerId) {
