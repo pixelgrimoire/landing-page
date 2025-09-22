@@ -24,17 +24,17 @@ export default function PixelGrimoireLanding() {
       {/* Runas globales detrás de todo el contenido */}
       <RuneEmitter enabled={magicEnabled} />
 
-      {/* Fondo estelar global */}
+      {/* Fondo estelar global (si quieres que siga siendo global, déjalo, si no, quítalo) */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <Starfield enabled={magicEnabled} />
-      </div>
-      {/* Nubes globales ancladas abajo, altura responsive */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 h-[28vh] sm:h-[32vh] md:h-[38vh] lg:h-[42vh] xl:h-[48vh] z-0 overflow-hidden">
-        <Cloudfield enabled={magicEnabled} />
       </div>
 
       <main className="pt-24 relative z-10">
         <Hero magicEnabled={magicEnabled} />
+        {/* Cloudfield entre Hero y Features */}
+        <div className="relative w-full h-[28vh] sm:h-[32vh] md:h-[38vh] lg:h-[42vh] xl:h-[48vh] -mt-100 -mb-30 z-0 pointer-events-none overflow-hidden">
+          <Cloudfield enabled={magicEnabled} />
+        </div>
         <Features />
         <Work />
         <Subscriptions />
