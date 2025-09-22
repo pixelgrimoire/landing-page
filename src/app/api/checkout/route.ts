@@ -1,5 +1,8 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/auth';
+import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
 
 export const runtime = 'nodejs';
 
@@ -28,14 +31,29 @@ export async function POST(req: NextRequest) {
     const url = new URL(req.url);
     const origin = `${url.protocol}//${url.host}`;
 
+    // Intenta vincular al Customer del usuario autenticado
+    const nextAuthSession = await getServerSession(authOptions);
+    let customerId: string | undefined = undefined;
+    if (nextAuthSession?.user?.id) {
+      const ensured = await ensureStripeCustomerForUser({
+        userId: nextAuthSession.user.id,
+        email: nextAuthSession.user.email,
+        name: nextAuthSession.user.name,
+        currentCustomerId: (nextAuthSession.user as any).stripeCustomerId || null,
+      });
+      if (ensured) customerId = ensured;
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      customer_email: email && email.includes('@') ? email : undefined,
+      customer: customerId,
+      customer_email: !customerId && email && email.includes('@') ? email : undefined,
       allow_promotion_codes: true,
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancel#pricing`,
-      metadata: { planId, billingCycle },
+      client_reference_id: nextAuthSession?.user?.id,
+      metadata: { planId, billingCycle, userId: nextAuthSession?.user?.id || '' },
     });
 
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: { 'Content-Type': 'application/json' } });

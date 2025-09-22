@@ -1,13 +1,23 @@
 import type { NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Auth0 from 'next-auth/providers/auth0';
 import { prisma } from '@/lib/prisma';
 import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: 'jwt' },
+  session: { strategy: 'jwt', maxAge: 60 * 60 * 24 },
   trustHost: true,
   providers: [
-    Credentials({
+    // Auth0 (recomendado). Se activará si hay ENV configuradas.
+    ...(process.env.AUTH0_ISSUER && process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET
+      ? [Auth0({
+          issuer: process.env.AUTH0_ISSUER,
+          clientId: process.env.AUTH0_CLIENT_ID,
+          clientSecret: process.env.AUTH0_CLIENT_SECRET,
+        })]
+      : []),
+    // Credentials (solo para desarrollo local). Desactivado en producción.
+    ...((!process.env.AUTH0_ISSUER && process.env.NODE_ENV !== 'production') ? [Credentials({
       name: 'Dev Email',
       credentials: { email: { label: 'Email', type: 'email' }, name: { label: 'Name', type: 'text' } },
       async authorize(creds) {
@@ -24,7 +34,7 @@ export const authOptions: NextAuthOptions = {
         await ensureStripeCustomerForUser({ userId: user.id, email: user.email, name: user.name, currentCustomerId: user.stripeCustomerId });
         return { id: user.id, email: user.email!, name: user.name || undefined, image: user.image || undefined } as any;
       },
-    }),
+    })] : []),
   ],
   callbacks: {
     async jwt({ token, user }) {
@@ -56,4 +66,3 @@ export const authOptions: NextAuthOptions = {
   // Define un secret para producción
   secret: process.env.NEXTAUTH_SECRET,
 };
-
