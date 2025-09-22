@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        String   @id // Stripe Customer ID (e.g., cus_...)
+  email     String?  // not unique to avoid conflicts
+  createdAt DateTime @default(now())
+
+  subscriptions Subscription[]
+  entitlements  Entitlement[]
+}
+
+model Subscription {
+  id                 String    @id @default(cuid())
+  stripeId           String    @unique // Stripe Subscription ID (sub_...)
+  customerId         String
+  status             String
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  items      SubscriptionItem[]
+}
+
+model SubscriptionItem {
+  id               String   @id @default(cuid())
+  stripeItemId     String   @unique // si usas items (siempre en subs de stripe)
+  subscriptionId   String
+  stripePriceId    String
+  stripeProductId  String?
+  quantity         Int      @default(1)
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model Entitlement {
+  id               String   @id @default(cuid())
+  customerId       String
+  code             String
+  status           String
+  currentPeriodEnd DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, code])
+}
+

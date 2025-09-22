@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { mapPriceIdsToEntitlements, revokeAllEntitlementsForCustomer, upsertUserEntitlements } from '@/lib/entitlements';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,65 @@ export async function POST(req: NextRequest) {
         const customerId = String(sub.customer);
         const priceIds = sub.items.data.map((it) => it.price.id);
         const entitlements = mapPriceIdsToEntitlements(priceIds);
+
+        // Upsert Customer (email opcional via expand)
+        try {
+          const customer = typeof sub.customer === 'string' ? await prisma.customer.upsert({
+            where: { id: customerId },
+            update: {},
+            create: { id: customerId },
+          }) : null;
+        } catch {}
+
+        // Upsert Subscription
+        await prisma.subscription.upsert({
+          where: { stripeId: sub.id },
+          update: {
+            customerId,
+            status: sub.status,
+            currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+            cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+          },
+          create: {
+            stripeId: sub.id,
+            customerId,
+            status: sub.status,
+            currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+            cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+          },
+        });
+
+        // Sync items
+        const dbSub = await prisma.subscription.findUniqueOrThrow({ where: { stripeId: sub.id } });
+        const existingItems = await prisma.subscriptionItem.findMany({ where: { subscriptionId: dbSub.id } });
+        const existingByStripeId = new Map(existingItems.map(i => [i.stripeItemId, i] as const));
+
+        for (const item of sub.items.data) {
+          const stripeItemId = item.id;
+          await prisma.subscriptionItem.upsert({
+            where: { stripeItemId },
+            update: {
+              subscriptionId: dbSub.id,
+              stripePriceId: item.price.id,
+              stripeProductId: typeof item.price.product === 'string' ? item.price.product : item.price.product?.id,
+              quantity: item.quantity || 1,
+            },
+            create: {
+              stripeItemId,
+              subscriptionId: dbSub.id,
+              stripePriceId: item.price.id,
+              stripeProductId: typeof item.price.product === 'string' ? item.price.product : item.price.product?.id,
+              quantity: item.quantity || 1,
+            },
+          });
+          existingByStripeId.delete(stripeItemId);
+        }
+
+        // Opcional: eliminar items que ya no existen en Stripe
+        for (const leftover of existingByStripeId.values()) {
+          await prisma.subscriptionItem.delete({ where: { stripeItemId: leftover.stripeItemId } });
+        }
+
         await upsertUserEntitlements({
           stripeCustomerId: customerId,
           entitlements,
@@ -65,6 +125,11 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = String(sub.customer);
         await revokeAllEntitlementsForCustomer(customerId);
+        // Opcional: marcar subscripción como cancelada
+        await prisma.subscription.update({
+          where: { stripeId: sub.id },
+          data: { status: sub.status },
+        }).catch(() => undefined);
         break;
       }
 
@@ -92,4 +157,3 @@ export async function POST(req: NextRequest) {
     return new Response(`Handler Error: ${msg}`, { status: 500 });
   }
 }
-

@@ -8,6 +8,7 @@ export type EntitlementGrant = {
   entitlements: string[]; // p.ej. ["pos.basic", "sas.pro"]
   status: string; // p.ej. "active", "trialing", "past_due"
   currentPeriodEnd?: number; // epoch seconds
+  customerEmail?: string | null; // si lo tenemos desde Stripe
 };
 
 function buildPriceToPlanIdMap(): Record<string, string> {
@@ -52,14 +53,49 @@ export function mapPriceIdsToEntitlements(priceIds: string[]): string[] {
   return Array.from(set);
 }
 
-// Estas funciones son "stubs": aquí deberías integrar tu BD/servicio de usuarios.
+import { prisma } from '@/lib/prisma';
+
 export async function upsertUserEntitlements(grant: EntitlementGrant): Promise<void> {
-  // TODO: reemplazar por persistencia real (Prisma/ORM/API interna)
-  console.log("[entitlements] UPSERT", JSON.stringify(grant));
+  const { stripeCustomerId, customerEmail, entitlements, status, currentPeriodEnd } = grant;
+
+  // Asegurar Customer
+  await prisma.customer.upsert({
+    where: { id: stripeCustomerId },
+    update: { email: customerEmail ?? undefined },
+    create: { id: stripeCustomerId, email: customerEmail ?? undefined },
+  });
+
+  // Estado del periodo
+  const cpeDate = currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : null;
+
+  // Traer existentes para calcular diferencias
+  const existing = await prisma.entitlement.findMany({ where: { customerId: stripeCustomerId } });
+  const existingSet = new Set(existing.map((e) => e.code));
+  const incomingSet = new Set(entitlements);
+
+  // Upsert/Update entrantes
+  for (const code of incomingSet) {
+    await prisma.entitlement.upsert({
+      where: { customerId_code: { customerId: stripeCustomerId, code } },
+      update: { status, currentPeriodEnd: cpeDate ?? undefined },
+      create: { customerId: stripeCustomerId, code, status, currentPeriodEnd: cpeDate ?? undefined },
+    });
+  }
+
+  // Desactivar los que ya no aplican
+  for (const code of existingSet) {
+    if (!incomingSet.has(code)) {
+      await prisma.entitlement.update({
+        where: { customerId_code: { customerId: stripeCustomerId, code } },
+        data: { status: 'inactive' },
+      });
+    }
+  }
 }
 
 export async function revokeAllEntitlementsForCustomer(stripeCustomerId: string): Promise<void> {
-  // TODO: reemplazar por persistencia real
-  console.log("[entitlements] REVOKE ALL for", stripeCustomerId);
+  await prisma.entitlement.updateMany({
+    where: { customerId: stripeCustomerId },
+    data: { status: 'inactive' },
+  });
 }
-
