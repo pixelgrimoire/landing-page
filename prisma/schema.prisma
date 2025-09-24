@@ -17,6 +17,7 @@ model User {
   clerkUserId      String?   @unique
 
   customers Customer[]
+  claimTokens ClaimToken[]
 }
 
 model Customer {
@@ -67,4 +68,17 @@ model Entitlement {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@unique([customerId, code])
+}
+
+model ClaimToken {
+  id               String   @id @default(cuid())
+  tokenHash        String   @unique
+  email            String?
+  stripeCustomerId String?
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status           String   @default("pending") // pending, bound, consumed, expired
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime?
+  usedAt           DateTime?
 }

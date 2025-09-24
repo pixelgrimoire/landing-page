@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { mapPriceIdsToEntitlements, revokeAllEntitlementsForCustomer, upsertUserEntitlements } from '@/lib/entitlements';
 import { prisma } from '@/lib/prisma';
+import { hashToken } from '@/lib/tokens';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
           const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
           const internalUserId = session.metadata?.userId;
           const email = session.customer_details?.email || session.customer_email || undefined;
+          const claimToken = session.metadata?.claimToken;
           if (customerId) {
             await prisma.customer.upsert({
               where: { id: customerId },
@@ -61,6 +63,13 @@ export async function POST(req: NextRequest) {
                 where: { id: internalUserId },
                 data: { stripeCustomerId: customerId },
               }).catch(()=>undefined);
+            }
+            if (claimToken) {
+              const tokenHash = hashToken(claimToken);
+              await prisma.claimToken.updateMany({
+                where: { tokenHash },
+                data: { stripeCustomerId: customerId, email: email ?? undefined, status: 'bound' },
+              });
             }
           }
         } catch (e) {

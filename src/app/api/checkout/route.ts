@@ -3,6 +3,9 @@ import Stripe from 'stripe';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
 import { ensureDbUserFromClerk } from '@/lib/clerkUser';
+import { createToken, hashToken } from '@/lib/tokens';
+import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
@@ -31,10 +34,11 @@ export async function POST(req: NextRequest) {
     const url = new URL(req.url);
     const origin = `${url.protocol}//${url.host}`;
 
-    // Vincular Customer con usuario Clerk autenticado
+    // Vincular Customer con usuario Clerk autenticado o generar claim token si es invitado
     const { userId } = await auth();
     let customerId: string | undefined = undefined;
     let internalUserId: string | undefined = undefined;
+    let claimToken: string | undefined;
     if (userId) {
       const clerk = await clerkClient();
       const u = await clerk.users.getUser(userId);
@@ -49,6 +53,12 @@ export async function POST(req: NextRequest) {
         currentCustomerId: dbUser.stripeCustomerId || null,
       });
       if (ensured) customerId = ensured;
+    } else {
+      // Invitado: generar claim token y guardarlo para vincular después del registro
+      claimToken = createToken();
+      const tokenHash = hashToken(claimToken);
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+      await prisma.claimToken.create({ data: { tokenHash, email: (email && email.includes('@')) ? email : undefined, expiresAt } });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -57,13 +67,21 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       customer_email: !customerId && email && email.includes('@') ? email : undefined,
       allow_promotion_codes: true,
-      success_url: `${origin}/?checkout=success`,
+      success_url: claimToken ? `${origin}/register?token=${claimToken}` : `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancel#pricing`,
       client_reference_id: internalUserId,
-      metadata: { planId, billingCycle, userId: internalUserId || '' },
+      metadata: { planId, billingCycle, userId: internalUserId || '', claimToken: claimToken || '' },
     });
 
-    return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    // Set cookie con el claim token (si aplica) para restringir el acceso a /register
+    if (claimToken) {
+      const cookie = `pg_claim=${claimToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60*60*24}`;
+      const res = NextResponse.json({ url: session.url });
+      res.headers.set('Set-Cookie', cookie);
+      return res;
+    }
+
+    return NextResponse.json({ url: session.url });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
