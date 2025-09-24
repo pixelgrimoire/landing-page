@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/auth';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
+import { ensureDbUserFromClerk } from '@/lib/clerkUser';
 
 export const runtime = 'nodejs';
 
@@ -31,15 +31,21 @@ export async function POST(req: NextRequest) {
     const url = new URL(req.url);
     const origin = `${url.protocol}//${url.host}`;
 
-    // Intenta vincular al Customer del usuario autenticado
-    const nextAuthSession = await getServerSession(authOptions);
+    // Vincular Customer con usuario Clerk autenticado
+    const { userId } = auth();
     let customerId: string | undefined = undefined;
-    if (nextAuthSession?.user?.id) {
+    let internalUserId: string | undefined = undefined;
+    if (userId) {
+      const u = await clerkClient.users.getUser(userId);
+      const primaryEmail = u.emailAddresses?.find(e=>e.id===u.primaryEmailAddressId)?.emailAddress || u.emailAddresses?.[0]?.emailAddress || undefined;
+      const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || undefined;
+      const dbUser = await ensureDbUserFromClerk({ clerkUserId: userId, email: primaryEmail, name, image: u.imageUrl });
+      internalUserId = dbUser.id;
       const ensured = await ensureStripeCustomerForUser({
-        userId: nextAuthSession.user.id,
-        email: nextAuthSession.user.email,
-        name: nextAuthSession.user.name,
-        currentCustomerId: (nextAuthSession.user as any).stripeCustomerId || null,
+        userId: dbUser.id,
+        email: primaryEmail,
+        name,
+        currentCustomerId: dbUser.stripeCustomerId || null,
       });
       if (ensured) customerId = ensured;
     }
@@ -52,8 +58,8 @@ export async function POST(req: NextRequest) {
       allow_promotion_codes: true,
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancel#pricing`,
-      client_reference_id: nextAuthSession?.user?.id,
-      metadata: { planId, billingCycle, userId: nextAuthSession?.user?.id || '' },
+      client_reference_id: internalUserId,
+      metadata: { planId, billingCycle, userId: internalUserId || '' },
     });
 
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: { 'Content-Type': 'application/json' } });

@@ -39,11 +39,26 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         // Útil para enlazar el customer con tu usuario interno (mediante metadata)
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log('[stripe] checkout.session.completed', {
-          customer: session.customer,
-          customer_email: session.customer_details?.email || session.customer_email,
-          metadata: session.metadata,
-        });
+        try {
+          const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+          const internalUserId = session.metadata?.userId;
+          const email = session.customer_details?.email || session.customer_email || undefined;
+          if (customerId) {
+            await prisma.customer.upsert({
+              where: { id: customerId },
+              update: { email: email ?? undefined, userId: internalUserId || undefined },
+              create: { id: customerId, email: email ?? undefined, userId: internalUserId || undefined },
+            });
+            if (internalUserId) {
+              await prisma.user.update({
+                where: { id: internalUserId },
+                data: { stripeCustomerId: customerId },
+              }).catch(()=>undefined);
+            }
+          }
+        } catch (e) {
+          console.warn('[stripe] link customer->user failed', e);
+        }
         break;
       }
 
