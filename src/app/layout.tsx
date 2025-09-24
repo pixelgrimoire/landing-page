@@ -26,9 +26,14 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
+          <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+            {children}
+          </ClerkProvider>
+        ) : (
+          // Si no hay CLERK PK, renderiza sin provider para permitir build local
+          children
+        )}
       </body>
     </html>
   );

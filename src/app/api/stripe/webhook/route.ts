@@ -6,6 +6,13 @@ import { prisma } from '@/lib/prisma';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+type SubscriptionExtra = {
+  current_period_end?: number;
+  cancel_at_period_end?: boolean;
+  currentPeriodEnd?: number;
+  cancelAtPeriodEnd?: boolean;
+};
+
 function getStripe(): Stripe | null {
   const secret = process.env.STRIPE_SECRET_KEY;
   if (!secret) return null;
@@ -68,6 +75,9 @@ export async function POST(req: NextRequest) {
         const customerId = String(sub.customer);
         const priceIds = sub.items.data.map((it) => it.price.id);
         const entitlements = mapPriceIdsToEntitlements(priceIds);
+        const sx = sub as Stripe.Subscription & SubscriptionExtra;
+        const currentPeriodEndSec = sx.current_period_end ?? sx.currentPeriodEnd ?? null;
+        const cancelAtPeriodEnd = sx.cancel_at_period_end ?? sx.cancelAtPeriodEnd ?? false;
 
         // Upsert Customer (email opcional via expand)
         try {
@@ -84,15 +94,15 @@ export async function POST(req: NextRequest) {
           update: {
             customerId,
             status: sub.status,
-            currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
-            cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+            currentPeriodEnd: currentPeriodEndSec ? new Date(currentPeriodEndSec * 1000) : null,
+            cancelAtPeriodEnd: !!cancelAtPeriodEnd,
           },
           create: {
             stripeId: sub.id,
             customerId,
             status: sub.status,
-            currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
-            cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+            currentPeriodEnd: currentPeriodEndSec ? new Date(currentPeriodEndSec * 1000) : null,
+            cancelAtPeriodEnd: !!cancelAtPeriodEnd,
           },
         });
 
@@ -131,7 +141,7 @@ export async function POST(req: NextRequest) {
           stripeCustomerId: customerId,
           entitlements,
           status: sub.status,
-          currentPeriodEnd: sub.current_period_end,
+          currentPeriodEnd: currentPeriodEndSec ?? undefined,
         });
         break;
       }
@@ -151,10 +161,7 @@ export async function POST(req: NextRequest) {
       // Opcional: maneja pagos fallidos para aplicar "grace period" o restricciones
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log('[stripe] invoice.payment_failed', {
-          customer: invoice.customer,
-          subscription: invoice.subscription,
-        });
+        console.log('[stripe] invoice.payment_failed', { customer: invoice.customer });
         break;
       }
 

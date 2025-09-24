@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 export async function requireEntitlement(code: string) {
-  const { userId } = auth();
+  const { userId } = await auth();
   if (!userId) {
     throw Object.assign(new Error('Unauthorized'), { status: 401 });
   }
