@@ -1,4 +1,4 @@
-export const MAIL_TO = 'mailto:sales@pixelgrimoire.com';
+export const MAIL_TO = 'mailto:admin@pixelgrimoire.com';
 
 export type Plan = {
   id: string;

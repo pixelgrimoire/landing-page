@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { mapPriceIdsToEntitlements, revokeAllEntitlementsForCustomer, upsertUserEntitlements } from '@/lib/entitlements';
 import { prisma } from '@/lib/prisma';
 import { hashToken } from '@/lib/tokens';
+import { sendEmail } from '@/lib/email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -70,6 +71,19 @@ export async function POST(req: NextRequest) {
                 where: { tokenHash },
                 data: { stripeCustomerId: customerId, email: email ?? undefined, status: 'bound' },
               });
+              // Enviar email con enlace de continuación y alternativa de OTP
+              if (email) {
+                const origin = process.env.PUBLIC_APP_URL || '';
+                const registerUrl = origin ? `${origin}/register?token=${encodeURIComponent(claimToken)}` : '/register?token=' + encodeURIComponent(claimToken);
+                const otpUrl = origin ? `${origin}/claim/start?token=${encodeURIComponent(claimToken)}` : '/claim/start?token=' + encodeURIComponent(claimToken);
+                const html = `
+                  <p>Gracias por tu compra.</p>
+                  <p>Continúa el registro aquí (mismo dispositivo/browser): <a href="${registerUrl}">Completar registro</a></p>
+                  <p>¿Usarás otro dispositivo? Verifica tu email y continúa aquí: <a href="${otpUrl}">Reclamar compra con código</a></p>
+                  <p>El enlace expira en 24 horas.</p>
+                `;
+                await sendEmail(email, 'Completa tu registro', html).catch(() => undefined);
+              }
             }
           }
         } catch (e) {

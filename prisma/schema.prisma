@@ -82,3 +82,16 @@ model ClaimToken {
   expiresAt        DateTime?
   usedAt           DateTime?
 }
+
+model ClaimOtp {
+  id         String   @id @default(cuid())
+  tokenHash  String
+  otpHash    String
+  attempts   Int      @default(0)
+  maxAttempts Int     @default(5)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  @@index([tokenHash])
+}

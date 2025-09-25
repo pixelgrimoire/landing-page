@@ -8,9 +8,8 @@ export default async function RegisterPage({ searchParams }: { searchParams: { t
   const token = (searchParams?.token || '').toString();
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get('pg_claim')?.value || '';
-  if (!token || !cookieToken || token !== cookieToken) {
-    redirect('/');
-  }
+  const verifiedToken = cookieStore.get('pg_claim_verified')?.value || '';
+  if (!token || (token !== cookieToken && token !== verifiedToken)) redirect('/');
   const tokenHash = hashToken(token);
   const claim = await prisma.claimToken.findUnique({ where: { tokenHash } });
   const now = new Date();

@@ -14,7 +14,8 @@ export async function GET(req: Request) {
   const token = url.searchParams.get('token') || '';
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get('pg_claim')?.value || '';
-  if (!token || token !== cookieToken) return NextResponse.redirect(new URL('/', req.url));
+  const verifiedToken = cookieStore.get('pg_claim_verified')?.value || '';
+  if (!token || (token !== cookieToken && token !== verifiedToken)) return NextResponse.redirect(new URL('/', req.url));
 
   const tokenHash = hashToken(token);
   const claim = await prisma.claimToken.findUnique({ where: { tokenHash } });
@@ -41,7 +42,8 @@ export async function GET(req: Request) {
   await prisma.claimToken.update({ where: { tokenHash }, data: { status: 'consumed', usedAt: new Date() } });
 
   const res = NextResponse.redirect(targetUrl);
-  // limpiar cookie
+  // limpiar cookies de claim
   res.headers.append('Set-Cookie', 'pg_claim=; Path=/; Max-Age=0; SameSite=Lax');
+  res.headers.append('Set-Cookie', 'pg_claim_verified=; Path=/; Max-Age=0; SameSite=Lax');
   return res;
 }
