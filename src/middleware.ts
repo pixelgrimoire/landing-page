@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   '/_next/image(.*)',
   '/_next/static(.*)',
   '/demo(.*)',
+  '/favicon.ico',
   '/sign-in(.*)',
   '/sign-up(.*)'
 ]);
@@ -29,4 +30,3 @@ export const config = {
     '/(api|trpc)(.*)'
   ],
 };
-
