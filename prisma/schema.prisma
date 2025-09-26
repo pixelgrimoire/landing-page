@@ -5,7 +5,9 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // En Vercel (Neon), usa la URL sin pool ya existente:
+  // POSTGRES_URL_NON_POOLING o DATABASE_URL_UNPOOLED
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 model User {
