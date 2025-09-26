@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      // Mantener compatibilidad si movemos los demos a /demo
+      { source: '/POS-Qubito.html', destination: '/demo/POS-Qubito.html', permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
