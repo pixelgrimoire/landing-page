@@ -4,22 +4,32 @@ import { useState } from 'react';
 import MagicPlanCard from '@/components/MagicPlanCard';
 import { PLANS, type Plan } from '@/lib/constants';
 
-export default function Subscriptions() {
+export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: boolean }) {
   const [yearly, setYearly] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const subscribe = async (plan: Plan) => {
     try {
       setLoading(true);
-      const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: plan.id, billingCycle: yearly ? 'yearly' : 'monthly', email: storedEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el checkout');
-      if (data?.url) window.location.href = data.url;
+      const cycle = yearly ? 'yearly' : 'monthly';
+      if (magicEnabled) {
+        const email = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
+        const url = new URL('/subscribe/pixel', window.location.origin);
+        url.searchParams.set('plan', plan.id);
+        url.searchParams.set('cycle', cycle);
+        if (email) url.searchParams.set('email', email);
+        window.location.href = url.toString();
+      } else {
+        const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: plan.id, billingCycle: cycle, email: storedEmail }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el checkout');
+        if (data?.url) window.location.href = data.url;
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'No se pudo iniciar el checkout';
       alert(message);

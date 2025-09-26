@@ -37,7 +37,7 @@ export default function PixelGrimoireLanding() {
         </div>
         <Features />
         <Work />
-        <Subscriptions />
+        <Subscriptions magicEnabled={magicEnabled} />
         <Tech />
       </main>
       <Footer />
