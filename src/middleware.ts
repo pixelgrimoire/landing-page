@@ -24,7 +24,9 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    '/((?!.+\.[\w]+$|_next).*)',
+    // exclude any path with a dot (static files) or _next
+    '/((?!.*\\..*|_next).*)',
     '/(api|trpc)(.*)'
   ],
 };
+
