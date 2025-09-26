@@ -1,9 +1,12 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { cls } from '@/lib/utils';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 
 export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMagicAction: () => void; magicEnabled: boolean }) {
+  const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
@@ -25,6 +28,24 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
               magicEnabled ? 'border-yellow-400/60 text-yellow-200 hover:bg-yellow-400/10' : 'border-white/20 text-white/80 hover:bg-white/5')}>
               {magicEnabled ? '✨ Magic: ON' : '⛔ Magic: OFF'}
             </button>
+            {hasClerk ? (
+              <>
+                <SignedOut>
+                  <SignInButton mode="modal">
+                    <button className="ml-2 text-xs sm:text-sm px-3 py-2 rounded-md border border-white/20 text-white/80 hover:bg-white/5">
+                      Iniciar sesión
+                    </button>
+                  </SignInButton>
+                </SignedOut>
+                <SignedIn>
+                  <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-7 h-7' } }} afterSignOutUrl="/" />
+                </SignedIn>
+              </>
+            ) : (
+              <Link href="/sign-in" className="ml-2 text-xs sm:text-sm px-3 py-2 rounded-md border border-white/20 text-white/80 hover:bg-white/5">
+                Iniciar sesión
+              </Link>
+            )}
           </div>
         </div>
       </div>

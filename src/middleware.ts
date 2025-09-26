@@ -12,6 +12,8 @@ const isPublicRoute = createRouteMatcher([
   '/_next/image(.*)',
   '/_next/static(.*)',
   '/demo(.*)',
+  '/sso-callback(.*)',
+  '/oauth(.*)',
   '/favicon.ico',
   '/sign-in(.*)',
   '/sign-up(.*)'
