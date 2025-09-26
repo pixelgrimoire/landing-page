@@ -31,5 +31,12 @@ export const clerkAppearance: Appearance = {
     formFieldErrorText: 'text-red-300',
     identityPreviewText: 'text-white/90',
     dividerLine: 'bg-white/10',
+    // UserButton popover tweaks (mejorar contraste en modo ghost/neutral)
+    userButtonPopoverCard: 'bg-[rgba(8,6,16,0.98)] border border-white/10',
+    userButtonPopoverActions: 'text-white',
+    userButtonPopoverActionButton: 'text-white/85 hover:bg-white/10',
+    userButtonPopoverActionButtonText: 'text-white',
+    userButtonPopoverActionButtonIcon: 'text-white',
+    userButtonPopoverFooter: 'text-white/70',
   },
 };
