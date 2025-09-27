@@ -44,7 +44,36 @@ export async function POST(req: NextRequest) {
       customerId = created.id;
     }
 
-    // Create subscription in incomplete state and return client_secret
+    // Validate price is recurring; then decide flow based on trial/amount
+    const price = await stripe.prices.retrieve(priceId);
+    if (!price.recurring) {
+      return new Response(
+        JSON.stringify({ error: 'El Price no es recurrente. Usa un precio de suscripción.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const unitAmount = price.unit_amount || 0;
+    const hasTrial = !!price.recurring?.trial_period_days && (price.recurring!.trial_period_days as number) > 0;
+
+    // If the price has a trial, run a SetupIntent flow so we can collect a
+    // payment method now and start the subscription immediately with a trial.
+    if (hasTrial) {
+      const setup = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' });
+      return new Response(
+        JSON.stringify({ intent_type: 'setup', client_secret: setup.client_secret, customerId }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For non-trial subscriptions, require a positive amount and create a
+    // default_incomplete subscription to get a PaymentIntent client_secret.
+    if (unitAmount <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'El Price tiene monto 0. No se puede generar PaymentIntent. Usa trial (SetupIntent) o un precio > 0.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
@@ -82,7 +111,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return new Response(JSON.stringify({ client_secret: clientSecret, subscriptionId: subscription.id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({ intent_type: 'payment', client_secret: clientSecret, subscriptionId: subscription.id }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });

@@ -14,6 +14,7 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
   const [loading, setLoading] = useState(false);
   const stripeP = useMemo(() => publishableKey ? loadStripe(publishableKey) : null, [publishableKey]);
   const linkRef = useRef<HTMLDivElement | null>(null);
+  const intentTypeRef = useRef<'payment' | 'setup' | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -31,6 +32,7 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
         const stripe = await stripeP;
         if (!stripe) throw new Error('Stripe no disponible');
         stripeRef.current = stripe;
+        intentTypeRef.current = (data.intent_type as 'payment' | 'setup') || 'payment';
         const elements = stripe.elements({ clientSecret: data.client_secret, appearance: paymentAppearance as unknown as import('@stripe/stripe-js').Appearance });
         elementsRef.current = elements;
         // Link Authentication (email)
@@ -60,8 +62,21 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
       const stripe = stripeRef.current; const elements = elementsRef.current;
       if (!stripe || !elements) throw new Error('Stripe/ELEMENTS no listos');
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const { error } = await stripe.confirmPayment({ elements, confirmParams: { return_url: `${origin}/?checkout=success` } });
-      if (error) setError(error.message || 'No se pudo confirmar el pago');
+      const planId = (searchParams?.plan || 'apprentice').toString();
+      const billingCycle = (searchParams?.cycle === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
+
+      if (intentTypeRef.current === 'setup') {
+        const { error } = await stripe.confirmSetup({
+          elements,
+          confirmParams: {
+            return_url: `${origin}/api/subscribe/activate?plan=${encodeURIComponent(planId)}&cycle=${encodeURIComponent(billingCycle)}`,
+          },
+        });
+        if (error) setError(error.message || 'No se pudo confirmar el método de pago');
+      } else {
+        const { error } = await stripe.confirmPayment({ elements, confirmParams: { return_url: `${origin}/?checkout=success` } });
+        if (error) setError(error.message || 'No se pudo confirmar el pago');
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     } finally {
