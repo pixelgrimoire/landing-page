@@ -16,6 +16,8 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
   const linkRef = useRef<HTMLDivElement | null>(null);
   const intentTypeRef = useRef<'payment' | 'setup' | null>(null);
   const subscriptionIdRef = useRef<string | null>(null);
+  const [displayAmount, setDisplayAmount] = useState<number>(0); // in major units
+  const [displayCurrency, setDisplayCurrency] = useState<string>('USD');
 
   useEffect(() => {
     (async () => {
@@ -35,6 +37,10 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
         stripeRef.current = stripe;
         intentTypeRef.current = (data.intent_type as 'payment' | 'setup') || 'payment';
         subscriptionIdRef.current = (data.subscriptionId as string | undefined) || null;
+        const rawAmount = typeof data.amount === 'number' ? data.amount : 0; // smallest unit
+        const dueNow = intentTypeRef.current === 'payment' ? rawAmount : 0;
+        setDisplayAmount(dueNow / 100);
+        if (typeof data.currency === 'string') setDisplayCurrency((data.currency as string).toUpperCase());
         const elements = stripe.elements({ clientSecret: data.client_secret, appearance: paymentAppearance as unknown as import('@stripe/stripe-js').Appearance });
         elementsRef.current = elements;
         // Link Authentication (email)
@@ -98,8 +104,8 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
   return (
     <PixelPay
       planName={planName}
-      unitPrice={0}
-      currency="USD"
+      unitPrice={displayAmount}
+      currency={displayCurrency}
       paymentContainerRef={paymentRef}
       linkAuthContainerRef={linkRef}
       onConfirm={confirm}

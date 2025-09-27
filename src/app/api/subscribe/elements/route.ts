@@ -60,7 +60,15 @@ export async function POST(req: NextRequest) {
     if (hasTrial) {
       const setup = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' });
       return new Response(
-        JSON.stringify({ intent_type: 'setup', client_secret: setup.client_secret, customerId }),
+        JSON.stringify({
+          intent_type: 'setup',
+          client_secret: setup.client_secret,
+          customerId,
+          amount: unitAmount,
+          currency: price.currency,
+          interval: price.recurring?.interval,
+          trial_days: price.recurring?.trial_period_days || 0,
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -71,7 +79,15 @@ export async function POST(req: NextRequest) {
       // $0 now, store a payment method with a SetupIntent for future cycles
       const setup = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' });
       return new Response(
-        JSON.stringify({ intent_type: 'setup', client_secret: setup.client_secret, customerId }),
+        JSON.stringify({
+          intent_type: 'setup',
+          client_secret: setup.client_secret,
+          customerId,
+          amount: unitAmount,
+          currency: price.currency,
+          interval: price.recurring?.interval,
+          trial_days: price.recurring?.trial_period_days || 0,
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -112,13 +128,30 @@ export async function POST(req: NextRequest) {
       // by updating this subscription with default_payment_method on activation.
       const setup = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' });
       return new Response(
-        JSON.stringify({ intent_type: 'setup', client_secret: setup.client_secret, customerId, subscriptionId: subscription.id }),
+        JSON.stringify({
+          intent_type: 'setup',
+          client_secret: setup.client_secret,
+          customerId,
+          subscriptionId: subscription.id,
+          amount: unitAmount,
+          currency: price.currency,
+          interval: price.recurring?.interval,
+          trial_days: price.recurring?.trial_period_days || 0,
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify({ intent_type: 'payment', client_secret: clientSecret, subscriptionId: subscription.id }),
+      JSON.stringify({
+        intent_type: 'payment',
+        client_secret: clientSecret,
+        subscriptionId: subscription.id,
+        amount: unitAmount,
+        currency: price.currency,
+        interval: price.recurring?.interval,
+        trial_days: price.recurring?.trial_period_days || 0,
+      }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (e: unknown) {
