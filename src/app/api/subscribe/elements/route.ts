@@ -49,15 +49,37 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
+      collection_method: 'charge_automatically',
       expand: ['latest_invoice.payment_intent'],
       metadata: { planId, billingCycle },
     });
 
-    type SubExp = Stripe.Subscription & { latest_invoice?: { payment_intent?: { client_secret?: string } } };
-    const subx = subscription as SubExp;
-    const clientSecret = subx.latest_invoice?.payment_intent?.client_secret;
+    // Attempt to extract client_secret reliably
+    let clientSecret: string | undefined;
+    const li = (subscription as unknown as { latest_invoice?: string | { payment_intent?: string | { client_secret?: string } } }).latest_invoice;
+    if (li && typeof li !== 'string') {
+      const pi = li.payment_intent;
+      if (pi && typeof pi !== 'string') clientSecret = pi.client_secret as string | undefined;
+      if (!clientSecret && typeof pi === 'string') {
+        const piObj = await stripe.paymentIntents.retrieve(pi);
+        clientSecret = piObj.client_secret || undefined;
+      }
+    }
+    if (!clientSecret && typeof subscription.latest_invoice === 'string') {
+      const inv = await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] }) as unknown as { payment_intent?: string | { client_secret?: string } };
+      const pi = inv.payment_intent;
+      if (pi && typeof pi !== 'string') clientSecret = pi.client_secret || undefined;
+      if (!clientSecret && typeof pi === 'string') {
+        const piObj = await stripe.paymentIntents.retrieve(pi);
+        clientSecret = piObj.client_secret || undefined;
+      }
+    }
+
     if (!clientSecret) {
-      return new Response(JSON.stringify({ error: 'No client_secret from PaymentIntent' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({ error: 'No client_secret from PaymentIntent. Revisa que el precio no tenga trial ni sea 0 y que la API use payment_behavior: default_incomplete.' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(JSON.stringify({ client_secret: clientSecret, subscriptionId: subscription.id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
