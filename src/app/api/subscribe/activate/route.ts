@@ -8,6 +8,7 @@ export async function GET(req: Request) {
   const setupIntentId = url.searchParams.get('setup_intent');
   const planId = url.searchParams.get('plan');
   const billingCycle = (url.searchParams.get('cycle') || 'yearly') as 'monthly'|'yearly';
+  const subscriptionId = url.searchParams.get('subscription');
 
   const origin = `${url.protocol}//${url.host}`;
   const redirect = (search: string) => NextResponse.redirect(`${origin}/?${search}`);
@@ -21,7 +22,20 @@ export async function GET(req: Request) {
     const si = await stripe.setupIntents.retrieve(setupIntentId);
     if (!si.customer || !si.payment_method) return redirect('checkout=error&reason=setup_incomplete');
 
-    // Map planId + cycle to price
+    // Si venimos de un SetupIntent para una suscripción ya creada (con invoice inicial 0),
+    // actualizamos esa suscripción con el método de pago por defecto y terminamos.
+    if (subscriptionId) {
+      try {
+        await stripe.subscriptions.update(subscriptionId, {
+          default_payment_method: typeof si.payment_method === 'string' ? si.payment_method : si.payment_method.id,
+        });
+        return redirect('checkout=success');
+      } catch {
+        // caemos al flujo de crear una suscripción nueva como respaldo
+      }
+    }
+
+    // Map planId + cycle to price si no había suscripción previa
     if (!planId) return redirect('checkout=error&reason=missing_plan');
     const pid = planId.toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
     const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
@@ -42,4 +56,3 @@ export async function GET(req: Request) {
     return redirect('checkout=error&reason=exception');
   }
 }
-

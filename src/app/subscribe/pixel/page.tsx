@@ -15,6 +15,7 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
   const stripeP = useMemo(() => publishableKey ? loadStripe(publishableKey) : null, [publishableKey]);
   const linkRef = useRef<HTMLDivElement | null>(null);
   const intentTypeRef = useRef<'payment' | 'setup' | null>(null);
+  const subscriptionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -33,6 +34,7 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
         if (!stripe) throw new Error('Stripe no disponible');
         stripeRef.current = stripe;
         intentTypeRef.current = (data.intent_type as 'payment' | 'setup') || 'payment';
+        subscriptionIdRef.current = (data.subscriptionId as string | undefined) || null;
         const elements = stripe.elements({ clientSecret: data.client_secret, appearance: paymentAppearance as unknown as import('@stripe/stripe-js').Appearance });
         elementsRef.current = elements;
         // Link Authentication (email)
@@ -69,7 +71,7 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
         const { error } = await stripe.confirmSetup({
           elements,
           confirmParams: {
-            return_url: `${origin}/api/subscribe/activate?plan=${encodeURIComponent(planId)}&cycle=${encodeURIComponent(billingCycle)}`,
+            return_url: `${origin}/api/subscribe/activate?plan=${encodeURIComponent(planId)}&cycle=${encodeURIComponent(billingCycle)}${subscriptionIdRef.current ? `&subscription=${encodeURIComponent(subscriptionIdRef.current)}` : ''}`,
           },
         });
         if (error) setError(error.message || 'No se pudo confirmar el método de pago');

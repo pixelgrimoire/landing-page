@@ -68,9 +68,11 @@ export async function POST(req: NextRequest) {
     // For non-trial subscriptions, require a positive amount and create a
     // default_incomplete subscription to get a PaymentIntent client_secret.
     if (unitAmount <= 0) {
+      // $0 now, store a payment method with a SetupIntent for future cycles
+      const setup = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' });
       return new Response(
-        JSON.stringify({ error: 'El Price tiene monto 0. No se puede generar PaymentIntent. Usa trial (SetupIntent) o un precio > 0.' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        JSON.stringify({ intent_type: 'setup', client_secret: setup.client_secret, customerId }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -105,9 +107,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (!clientSecret) {
+      // Fallback: if no PI was created (e.g., invoice due is 0 for first cycle),
+      // create a SetupIntent so we can at least collect a PM and then finalize
+      // by updating this subscription with default_payment_method on activation.
+      const setup = await stripe.setupIntents.create({ customer: customerId, usage: 'off_session' });
       return new Response(
-        JSON.stringify({ error: 'No client_secret from PaymentIntent. Revisa que el precio no tenga trial ni sea 0 y que la API use payment_behavior: default_incomplete.' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        JSON.stringify({ intent_type: 'setup', client_secret: setup.client_secret, customerId, subscriptionId: subscription.id }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
