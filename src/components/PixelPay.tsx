@@ -6,6 +6,9 @@ export default function PixelPay({
   planName,
   unitPrice,
   currency = 'USD',
+  recurringPrice,
+  recurringInterval,
+  trialDays,
   paymentContainerRef,
   linkAuthContainerRef,
   onConfirm,
@@ -15,6 +18,9 @@ export default function PixelPay({
   planName: string;
   unitPrice: number;
   currency?: string;
+  recurringPrice?: number;
+  recurringInterval?: 'day'|'week'|'month'|'year';
+  trialDays?: number;
   paymentContainerRef: React.RefObject<HTMLDivElement | null>;
   linkAuthContainerRef?: React.RefObject<HTMLDivElement | null>;
   onConfirm: () => Promise<void> | void;
@@ -46,11 +52,21 @@ export default function PixelPay({
               <span className="font-semibold">{planName}</span>
             </div>
             <div className="flex justify-between text-sm mt-2 pt-2 border-t border-cyan-400/30">
-              <span className="opacity-80">Total</span>
+              <span className="opacity-80">Total hoy</span>
               <span className="font-bold">{currency} {unitPrice.toFixed(2)}</span>
             </div>
+            {typeof recurringPrice === 'number' && recurringPrice > 0 && (
+              <div className="flex justify-between text-sm mt-2">
+                <span className="opacity-80">Luego</span>
+                <span className="font-semibold">{currency} {recurringPrice.toFixed(2)}{recurringInterval ? ` / ${recurringInterval === 'month' ? 'mes' : recurringInterval === 'year' ? 'año' : recurringInterval}` : ''}</span>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-white/70">Pago seguro con Stripe. Tus datos están cifrados.</p>
+          <p className="text-xs text-white/70">
+            Pago seguro con Stripe. Tus datos están cifrados.
+            {typeof recurringPrice === 'number' && unitPrice === 0 && recurringPrice > 0 ? ' Hoy no se realizará cargo, solo se guardará tu método de pago.' : ''}
+            {typeof trialDays === 'number' && trialDays > 0 ? ` Tu prueba dura ${trialDays} día${trialDays === 1 ? '' : 's'}.` : ''}
+          </p>
         </section>
 
         {/* Right: Payment Element slot + confirm */}

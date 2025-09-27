@@ -7,6 +7,8 @@ import PixelPay from '@/components/PixelPay';
 
 export default function SubscribePixelPage({ searchParams }: { searchParams: { plan?: string; cycle?: 'monthly'|'yearly'; email?: string } }) {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const planId = (searchParams?.plan || 'apprentice').toString();
+  const billingCycle = (searchParams?.cycle === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
   const paymentRef = useRef<HTMLDivElement | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
   const stripeRef = useRef<Stripe | null>(null);
@@ -18,12 +20,14 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
   const subscriptionIdRef = useRef<string | null>(null);
   const [displayAmount, setDisplayAmount] = useState<number>(0); // in major units
   const [displayCurrency, setDisplayCurrency] = useState<string>('USD');
+  const [recurringAmount, setRecurringAmount] = useState<number>(0); // in major units
+  const [recurringInterval, setRecurringInterval] = useState<'day'|'week'|'month'|'year'>('month');
+  const [trialDays, setTrialDays] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
       if (!stripeP) { setError('Stripe publishable key missing'); return; }
-      const planId = (searchParams?.plan || 'apprentice').toString();
-      const billingCycle = (searchParams?.cycle === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
+      // planId and billingCycle defined above for consistency across UI and API
       setLoading(true);
       try {
         const res = await fetch('/api/subscribe/elements', {
@@ -54,6 +58,11 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
         const paymentElement = elements.create('payment');
         if (!paymentRef.current) throw new Error('Container no disponible');
         paymentElement.mount(paymentRef.current);
+
+        // Pricing display
+        setRecurringAmount((rawAmount || 0) / 100);
+        if (typeof data.interval === 'string' && ['day','week','month','year'].includes(data.interval)) setRecurringInterval(data.interval);
+        if (typeof data.trial_days === 'number') setTrialDays(data.trial_days);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Error inesperado';
         setError(msg);
@@ -70,9 +79,8 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
       const stripe = stripeRef.current; const elements = elementsRef.current;
       if (!stripe || !elements) throw new Error('Stripe/ELEMENTS no listos');
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const planId = (searchParams?.plan || 'apprentice').toString();
-      const billingCycle = (searchParams?.cycle === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
-
+      // Use consistent values
+      
       if (intentTypeRef.current === 'setup') {
         const { error } = await stripe.confirmSetup({
           elements,
@@ -100,12 +108,15 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
     );
   }
 
-  const planName = (searchParams?.plan || 'Apprentice') + (searchParams?.cycle === 'yearly' ? ' (Anual)' : ' (Mensual)');
+  const planName = (searchParams?.plan || 'Apprentice') + (billingCycle === 'yearly' ? ' (Anual)' : ' (Mensual)');
   return (
     <PixelPay
       planName={planName}
       unitPrice={displayAmount}
       currency={displayCurrency}
+      recurringPrice={recurringAmount}
+      recurringInterval={recurringInterval}
+      trialDays={trialDays}
       paymentContainerRef={paymentRef}
       linkAuthContainerRef={linkRef}
       onConfirm={confirm}

@@ -97,29 +97,44 @@ export async function POST(req: NextRequest) {
       items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
       collection_method: 'charge_automatically',
+      payment_settings: {
+        save_default_payment_method: 'on_subscription',
+        payment_method_types: ['card', 'link'],
+      },
       expand: ['latest_invoice.payment_intent'],
       metadata: { planId, billingCycle },
     });
 
     // Attempt to extract client_secret reliably
     let clientSecret: string | undefined;
-    const li = (subscription as unknown as { latest_invoice?: string | { payment_intent?: string | { client_secret?: string } } }).latest_invoice;
-    if (li && typeof li !== 'string') {
-      const pi = li.payment_intent;
-      if (pi && typeof pi !== 'string') clientSecret = pi.client_secret as string | undefined;
-      if (!clientSecret && typeof pi === 'string') {
-        const piObj = await stripe.paymentIntents.retrieve(pi);
-        clientSecret = piObj.client_secret || undefined;
+    const tryLoadClientSecret = async (sub: Stripe.Subscription) => {
+      let cs: string | undefined;
+      const li = (sub as unknown as { latest_invoice?: string | { payment_intent?: string | { client_secret?: string } } }).latest_invoice;
+      if (li && typeof li !== 'string') {
+        const pi = li.payment_intent as unknown;
+        if (pi && typeof pi !== 'string') cs = (pi as { client_secret?: string }).client_secret || undefined;
+        if (!cs && typeof pi === 'string') {
+          const piObj = await stripe.paymentIntents.retrieve(pi);
+          cs = piObj.client_secret || undefined;
+        }
       }
-    }
-    if (!clientSecret && typeof subscription.latest_invoice === 'string') {
-      const inv = await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] }) as unknown as { payment_intent?: string | { client_secret?: string } };
-      const pi = inv.payment_intent;
-      if (pi && typeof pi !== 'string') clientSecret = pi.client_secret || undefined;
-      if (!clientSecret && typeof pi === 'string') {
-        const piObj = await stripe.paymentIntents.retrieve(pi);
-        clientSecret = piObj.client_secret || undefined;
+      if (!cs && typeof sub.latest_invoice === 'string') {
+        const inv = await stripe.invoices.retrieve(sub.latest_invoice, { expand: ['payment_intent'] }) as unknown as { payment_intent?: string | { client_secret?: string } };
+        const pi = inv.payment_intent;
+        if (pi && typeof pi !== 'string') cs = (pi as { client_secret?: string }).client_secret || undefined;
+        if (!cs && typeof pi === 'string') {
+          const piObj = await stripe.paymentIntents.retrieve(pi);
+          cs = piObj.client_secret || undefined;
+        }
       }
+      return cs;
+    };
+
+    clientSecret = await tryLoadClientSecret(subscription);
+    if (!clientSecret) {
+      // Re-retrieve subscription expanded as sometimes PI is attached shortly after creation
+      const refreshed = await stripe.subscriptions.retrieve(subscription.id, { expand: ['latest_invoice.payment_intent'] });
+      clientSecret = await tryLoadClientSecret(refreshed);
     }
 
     if (!clientSecret) {
