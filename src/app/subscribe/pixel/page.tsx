@@ -1,17 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadStripe, StripeElements, Stripe } from '@stripe/stripe-js';
+import { loadStripe, type StripeElements, type Stripe } from '@stripe/stripe-js';
 import { paymentAppearance } from '@/lib/stripeAppearance';
+import PixelPay from '@/components/PixelPay';
 
 export default function SubscribePixelPage({ searchParams }: { searchParams: { plan?: string; cycle?: 'monthly'|'yearly'; email?: string } }) {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const paymentRef = useRef<HTMLDivElement | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
   const stripeRef = useRef<Stripe | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const stripeP = useMemo(() => publishableKey ? loadStripe(publishableKey) : null, [publishableKey]);
+  const linkRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -31,9 +33,17 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
         stripeRef.current = stripe;
         const elements = stripe.elements({ clientSecret: data.client_secret, appearance: paymentAppearance as unknown as import('@stripe/stripe-js').Appearance });
         elementsRef.current = elements;
+        // Link Authentication (email)
+        try {
+          if (linkRef.current) {
+            const opts: Record<string, unknown> = { defaultValues: { email: (searchParams?.email || '') as string } };
+            const linkEl = elements.create('linkAuthentication', opts as never);
+            linkEl.mount(linkRef.current);
+          }
+        } catch {}
         const paymentElement = elements.create('payment');
-        if (!containerRef.current) throw new Error('Container no disponible');
-        paymentElement.mount(containerRef.current);
+        if (!paymentRef.current) throw new Error('Container no disponible');
+        paymentElement.mount(paymentRef.current);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Error inesperado';
         setError(msg);
@@ -67,16 +77,17 @@ export default function SubscribePixelPage({ searchParams }: { searchParams: { p
     );
   }
 
+  const planName = (searchParams?.plan || 'Apprentice') + (searchParams?.cycle === 'yearly' ? ' (Anual)' : ' (Mensual)');
   return (
-    <div className="min-h-[70vh] flex items-center justify-center py-16">
-      <div className="w-full max-w-xl min-h-[580px] pixel-border rounded bg-black/30 border border-white/10 p-5 space-y-4">
-        <h1 className="text-yellow-200 font-bold pixel-font text-lg">Suscripción — Estilo Pixel</h1>
-        {error && <div className="text-red-300 text-sm">{error}</div>}
-        <div ref={containerRef} className="min-h-[520px]" aria-busy={loading}></div>
-        <button onClick={confirm} disabled={loading} className="w-full px-4 py-2 rounded bg-yellow-400 text-black font-bold hover:bg-yellow-300 disabled:opacity-50 pixel-border">
-          {loading ? 'Procesando…' : 'Confirmar pago'}
-        </button>
-      </div>
-    </div>
+    <PixelPay
+      planName={planName}
+      unitPrice={0}
+      currency="USD"
+      paymentContainerRef={paymentRef}
+      linkAuthContainerRef={linkRef}
+      onConfirm={confirm}
+      loading={loading}
+      error={error}
+    />
   );
 }
