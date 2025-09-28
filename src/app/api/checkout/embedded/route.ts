@@ -43,22 +43,28 @@ export async function POST(req: NextRequest) {
       if (ensured) customer = ensured;
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       ui_mode: 'embedded',
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      customer,
-      customer_email: !customer && email && email.includes('@') ? email : undefined,
       allow_promotion_codes: true,
       automatic_tax: { enabled: true },
       // Require a billing address to reliably determine location for Automatic Tax
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
       customer_update: { address: 'auto', name: 'auto' },
-      customer_creation: 'if_required',
       return_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       metadata: { planId, billingCycle },
-    });
+    };
+
+    if (customer) {
+      sessionParams.customer = customer;
+    } else {
+      if (email && email.includes('@')) sessionParams.customer_email = email;
+      sessionParams.customer_creation = 'if_required';
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     return new Response(JSON.stringify({ client_secret: session.client_secret }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: unknown) {

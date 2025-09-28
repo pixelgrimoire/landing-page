@@ -3,25 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MagicPlanCard from '@/components/MagicPlanCard';
+import CheckoutModal from '@/components/CheckoutModal';
+import ElementsCheckoutModal from '@/components/ElementsCheckoutModal';
 import { PLANS, type Plan } from '@/lib/constants';
 
 export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: boolean }) {
   const [yearly, setYearly] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const router = useRouter();
 
   const subscribe = async (plan: Plan) => {
-    // Route to embedded checkout page with parameters
-    try {
-      setLoading(true);
-      const cycle = yearly ? 'yearly' : 'monthly';
-      const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
-      const params = new URLSearchParams({ plan: plan.id, cycle });
-      if (storedEmail) params.set('email', storedEmail);
-      router.push(`/subscribe/elements?${params.toString()}`);
-    } finally {
-      setLoading(false);
-    }
+    // Open modal with Stripe Embedded Checkout
+    setSelectedPlan(plan);
+    setModalOpen(true);
   };
 
   return (
@@ -39,6 +35,14 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
             <MagicPlanCard key={p.id} plan={p} yearly={yearly} onSubscribeAction={subscribe} />
           ))}
         </div>
+        {/* Modal mount: custom Elements flow (preferred) */}
+        <ElementsCheckoutModal
+          open={modalOpen}
+          onClose={()=> setModalOpen(false)}
+          planId={selectedPlan?.id || 'apprentice'}
+          cycle={yearly ? 'yearly' : 'monthly'}
+          email={typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || undefined) : undefined}
+        />
       </div>
     </section>
   );

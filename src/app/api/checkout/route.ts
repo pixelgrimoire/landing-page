@@ -61,23 +61,29 @@ export async function POST(req: NextRequest) {
       await prisma.claimToken.create({ data: { tokenHash, email: (email && email.includes('@')) ? email : undefined, expiresAt } });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      customer: customerId,
-      customer_email: !customerId && email && email.includes('@') ? email : undefined,
       allow_promotion_codes: true,
       automatic_tax: { enabled: true },
       // Require a billing address to reliably determine location for Automatic Tax
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
       customer_update: { address: 'auto', name: 'auto' },
-      customer_creation: 'if_required',
       success_url: claimToken ? `${origin}/register?token=${claimToken}` : `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancel#pricing`,
       client_reference_id: internalUserId,
       metadata: { planId, billingCycle, userId: internalUserId || '', claimToken: claimToken || '' },
-    });
+    };
+
+    if (customerId) {
+      sessionParams.customer = customerId;
+    } else {
+      if (email && email.includes('@')) sessionParams.customer_email = email;
+      sessionParams.customer_creation = 'if_required';
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     // Set cookie con el claim token (si aplica) para restringir el acceso a /register
     if (claimToken) {
