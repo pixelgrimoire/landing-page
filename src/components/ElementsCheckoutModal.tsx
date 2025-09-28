@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement, AddressElement } from '@stripe/react-stripe-js';
-import type { StripeAddressElementChangeEvent } from '@stripe/stripe-js';
+import type { StripeAddressElementChangeEvent, StripeLinkAuthenticationElementChangeEvent } from '@stripe/stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useUser } from '@clerk/nextjs';
 
@@ -90,10 +90,12 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | undefined>(initialEmail);
+  const [emailComplete, setEmailComplete] = useState<boolean>(!!(initialEmail && /.+@.+\..+/.test(initialEmail)));
   const [totals, setTotals] = useState<{ subtotal?: number; tax?: number; total?: number; discount?: number; currency?: string; lineDescription?: string } | null>(null);
   const [planIdLabel, setPlanIdLabel] = useState('');
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
+  const [emailTouched, setEmailTouched] = useState(false);
 
   function formatMoney(amountMinor: number | null | undefined, currency: string) {
     if (amountMinor == null) return '—';
@@ -108,10 +110,14 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const toTitle = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s);
   const normalizePromo = (s?: string | null) => (s ? s.trim().toUpperCase() : '');
 
+  const isValidEmail = (s?: string) => !!(s && /.+@.+\..+/.test(s));
   const createSession = useCallback(async (opts?: { promo?: string }) => {
     if (!stripePromise) { setError('Stripe publishable key missing'); return; }
     setPlanIdLabel(toTitle(planId));
     setBillingCycleLabel(cycle === 'yearly' ? 'Anual' : 'Mensual');
+    if (!isSignedIn && !isValidEmail(email)) {
+      return; // evita llamadas hasta tener email válido
+    }
     try {
       const res = await fetch('/api/subscribe/elements', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -154,26 +160,17 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
     }
   }, [stripePromise, planId, cycle, isSignedIn, email, promotionCode, customerId, priceId, billingAddress]);
 
-  useEffect(() => {
-    (async () => {
-      if (!stripePromise) { setError('Stripe publishable key missing'); return; }
-      if (isSignedIn || email) {
-        setLoading(true);
-        try { await createSession(); } finally { setLoading(false); }
-      }
-    })();
-  }, [stripePromise, isSignedIn, email, createSession]);
-
+  // Debounced single source of truth to create a session
   useEffect(() => {
     if (!stripePromise) return;
-    if (isSignedIn) return;
     if (clientSecret) return;
-    if (!email) return;
-    (async () => {
+    if (!(isSignedIn || (email && emailComplete))) return;
+    const t = setTimeout(async () => {
       setLoading(true);
       try { await createSession(); } finally { setLoading(false); }
-    })();
-  }, [email, isSignedIn, clientSecret, stripePromise, createSession]);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [stripePromise, isSignedIn, email, emailComplete, clientSecret, createSession]);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -265,10 +262,15 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
                           {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '—'}
                         </div>
                       ) : (
-                        <LinkAuthenticationElement
-                          options={ email ? { defaultValues: { email } } : undefined }
-                          onChange={(e)=> setEmail(e.value?.email || undefined) }
-                        />
+                        <>
+                          <LinkAuthenticationElement
+                            options={ email && emailComplete ? { defaultValues: { email } } : undefined }
+                            onChange={(e: StripeLinkAuthenticationElementChangeEvent)=> { setEmailTouched(true); setEmail(e.value?.email || undefined); setEmailComplete(!!e.complete); }}
+                          />
+                          {!isSignedIn && emailTouched && !emailComplete && (
+                            <div className="mt-1 text-[11px] text-red-300">Ingresa un correo válido</div>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="pixel-border rounded-lg p-3">
