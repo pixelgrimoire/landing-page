@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement, AddressElement } from '@stripe/react-stripe-js';
+import type { StripeAddressElementChangeEvent } from '@stripe/stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useUser } from '@clerk/nextjs';
 
@@ -73,7 +74,7 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
   );
 }
 
-function Inner({ planId, cycle, initialEmail }: { planId: string; cycle: 'monthly'|'yearly'; initialEmail?: string }) {
+function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle: 'monthly'|'yearly'; initialEmail?: string; onClose: () => void }) {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const stripePromise = useMemo(() => (publishableKey ? loadStripe(publishableKey) : null), [publishableKey]);
   const { user, isSignedIn } = useUser();
@@ -217,6 +218,10 @@ function Inner({ planId, cycle, initialEmail }: { planId: string; cycle: 'monthl
 
   return (
     <div className="relative w-full max-w-3xl rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
+      {/* Pixel-art close button anchored to the card */}
+      <button aria-label="Cerrar" onClick={onClose} className="pixel-close-btn -top-5 -right-5 z-20" title="Cerrar">
+        <span className="btn-face" />
+      </button>
       {(() => { const glowStyle = { ['--glow' as unknown as string]: '#FACC15' } as CSSProperties; return (<div className="edge-glow" style={glowStyle} />); })()}
       <div className="absolute inset-0 rounded-xl pointer-events-none ring-1 ring-white/5" />
       <div className="relative p-4 sm:p-6">
@@ -268,7 +273,10 @@ function Inner({ planId, cycle, initialEmail }: { planId: string; cycle: 'monthl
                     </div>
                     <div className="pixel-border rounded-lg p-3">
                       <div className="mb-2 text-white/80 text-xs">Dirección de facturación</div>
-                      <AddressElement options={{ mode: 'billing', fields: { phone: 'never' } }} onChange={(e: any)=> setBillingAddress(e?.value?.address || undefined)} />
+                      <AddressElement options={{ mode: 'billing', fields: { phone: 'never' } }} onChange={(e: StripeAddressElementChangeEvent)=> {
+                        const a = e?.value?.address;
+                        setBillingAddress(a ? { line1: a.line1, line2: a.line2 ?? undefined, city: a.city, state: a.state, postal_code: a.postal_code, country: a.country } : undefined);
+                      }} />
                     </div>
                     <CheckoutForm intentType={intentType} />
                   </div>
@@ -334,9 +342,8 @@ export default function ElementsCheckoutModal({ open, onClose, planId, cycle, em
     <div className="fixed inset-0 z-[100]">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <button aria-label="Cerrar" onClick={onClose} className="absolute top-4 right-4 text-white/60 hover:text-white z-[101] px-2 py-1">✕</button>
         <Suspense fallback={<div className="text-white/80">Cargando…</div>}>
-          <Inner planId={planId} cycle={cycle} initialEmail={email} />
+          <Inner planId={planId} cycle={cycle} initialEmail={email} onClose={onClose} />
         </Suspense>
       </div>
     </div>

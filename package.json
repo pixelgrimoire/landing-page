@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "prisma generate",
+    "prebuild": "node scripts/prebuild.mjs",
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "vercel-build": "npm run migrate:deploy && npm run build",

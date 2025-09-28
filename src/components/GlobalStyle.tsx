@@ -65,6 +65,14 @@ export default function GlobalStyle() {
       .magic-card.flipped .rune { opacity:1; }
       .rune-sprite { position:absolute; filter: drop-shadow(0 0 10px rgba(250,204,21,0.9)); opacity:0; will-change: transform, opacity, filter; }
 
+      /* Pixel-style close button (retro octagon coin) */
+      .pixel-close-btn { position:absolute; width:42px; height:42px; display:grid; place-items:center; cursor:pointer; }
+      .pixel-close-btn .btn-face { position:relative; width:34px; height:34px; clip-path: polygon(22% 0, 78% 0, 100% 22%, 100% 78%, 78% 100%, 22% 100%, 0 78%, 0 22%);
+        background: linear-gradient(180deg, #f59e0b, #fbbf24); box-shadow: inset -3px -3px 0 #d97706, inset 2px 2px 0 #fde68a, 0 0 0 2px #fcd34d, 0 0 14px rgba(250,204,21,.55); image-rendering: pixelated; border-radius:6px; }
+      .pixel-close-btn .btn-face:before { content:'✕'; position:absolute; inset:0; display:grid; place-items:center; color:#3b1a03; font-family:'Press Start 2P', monospace; font-size:12px; line-height:1; text-shadow: 0 1px 0 #fde68a, 0 0 6px rgba(0,0,0,.35); }
+      .pixel-close-btn:hover .btn-face { filter: brightness(1.05); box-shadow: inset -3px -3px 0 #d97706, inset 2px 2px 0 #fff3b0, 0 0 0 2px #fcd34d, 0 0 18px rgba(250,204,21,.75); }
+      .pixel-close-btn:active .btn-face { transform: translateY(1px); box-shadow: inset -1px -1px 0 #b45309, inset 1px 1px 0 #fde68a, 0 0 0 2px #facc15, 0 0 10px rgba(250,204,21,.5); }
+    
       /* Gentle floating animation for hero visual (image + magic circle) */
       .float-slow { animation: floatY 6.5s ease-in-out infinite; will-change: transform; }
       .float-slower { animation: floatY 9s ease-in-out infinite; will-change: transform; }

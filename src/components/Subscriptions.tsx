@@ -1,18 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import MagicPlanCard from '@/components/MagicPlanCard';
-import CheckoutModal from '@/components/CheckoutModal';
 import ElementsCheckoutModal from '@/components/ElementsCheckoutModal';
 import { PLANS, type Plan } from '@/lib/constants';
 
 export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: boolean }) {
   const [yearly, setYearly] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const router = useRouter();
 
   const subscribe = async (plan: Plan) => {
     // Open modal with Stripe Embedded Checkout
