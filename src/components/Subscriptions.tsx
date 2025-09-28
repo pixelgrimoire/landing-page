@@ -25,7 +25,7 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
   };
 
   return (
-    <section id="pricing" className="relative z-20 py-20">
+    <section id="pricing" className="relative z-20 py-20" data-magic={magicEnabled ? 'on' : 'off'}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <h2 className="text-white text-2xl sm:text-3xl font-bold smooth-font">Subscripciones</h2>

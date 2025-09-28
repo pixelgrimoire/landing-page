@@ -48,7 +48,8 @@ export default function ProjectSelectionPage() {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [entitlementCode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [entitlementCode]);
 
   async function submit() {
     setLoading(true); setError(null); setMessage(null);

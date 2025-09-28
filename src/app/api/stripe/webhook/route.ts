@@ -104,11 +104,11 @@ export async function POST(req: NextRequest) {
 
         // Upsert Customer (email opcional via expand)
         try {
-          const customer = typeof sub.customer === 'string' ? await prisma.customer.upsert({
+          await prisma.customer.upsert({
             where: { id: customerId },
             update: {},
             create: { id: customerId },
-          }) : null;
+          }).catch(()=>undefined);
         } catch {}
 
         // Upsert Subscription
@@ -202,3 +202,4 @@ export async function POST(req: NextRequest) {
     return new Response(`Handler Error: ${msg}`, { status: 500 });
   }
 }
+

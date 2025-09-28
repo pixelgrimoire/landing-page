@@ -1,9 +1,8 @@
-import { NextRequest } from 'next/server';
 import { requireEntitlement } from '@/lib/requireEntitlement';
 
 export const runtime = 'nodejs';
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     await requireEntitlement('pos.basic');
     return new Response(JSON.stringify({ ok: true, message: 'Acceso POS permitido' }), { status: 200, headers: { 'Content-Type': 'application/json' } });

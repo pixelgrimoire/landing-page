@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { prisma } from '@/lib/prisma';
 import { ensureDbUserFromClerk } from '@/lib/clerkUser';
 import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
 
@@ -44,3 +43,4 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
+
