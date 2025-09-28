@@ -12,24 +12,15 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
     try {
       setLoading(true);
       const cycle = yearly ? 'yearly' : 'monthly';
-      if (magicEnabled) {
-        const email = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
-        const url = new URL('/subscribe/pixel', window.location.origin);
-        url.searchParams.set('plan', plan.id);
-        url.searchParams.set('cycle', cycle);
-        if (email) url.searchParams.set('email', email);
-        window.location.href = url.toString();
-      } else {
-        const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
-        const res = await fetch('/api/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId: plan.id, billingCycle: cycle, email: storedEmail }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el checkout');
-        if (data?.url) window.location.href = data.url;
-      }
+      const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId: plan.id, billingCycle: cycle, email: storedEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el checkout');
+      if (data?.url) window.location.href = data.url;
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'No se pudo iniciar el checkout';
       alert(message);
