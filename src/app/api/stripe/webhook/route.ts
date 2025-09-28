@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         // Sync items
         const dbSub = await prisma.subscription.findUniqueOrThrow({ where: { stripeId: sub.id } });
         const existingItems = await prisma.subscriptionItem.findMany({ where: { subscriptionId: dbSub.id } });
-        const existingByStripeId = new Map(existingItems.map(i => [i.stripeItemId, i] as const));
+        const existingByStripeId = new Map(existingItems.map((it: { stripeItemId: string }) => [it.stripeItemId, it] as const));
 
         for (const item of sub.items.data) {
           const stripeItemId = item.id;
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Opcional: eliminar items que ya no existen en Stripe
-        for (const leftover of existingByStripeId.values()) {
+        for (const leftover of existingByStripeId.values() as Iterable<{ stripeItemId: string }>) {
           await prisma.subscriptionItem.delete({ where: { stripeItemId: leftover.stripeItemId } });
         }
 

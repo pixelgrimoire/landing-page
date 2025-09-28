@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement } from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement, AddressElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -105,6 +105,7 @@ function ElementsInner() {
   const [totals, setTotals] = useState<{ subtotal?: number; tax?: number; total?: number; discount?: number; currency?: string; lineDescription?: string } | null>(null);
   const [planIdLabel, setPlanIdLabel] = useState('');
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
+  const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
 
   function formatMoney(amountMinor: number | null | undefined, currency: string) {
     if (amountMinor == null) return 'â€”';
@@ -137,6 +138,7 @@ function ElementsInner() {
           // Si no estÃ¡ logueado, enviamos el email capturado; si estÃ¡ logueado, no es necesario
           email: !isSignedIn ? (email || searchParams.get('email') || undefined) : undefined,
           promotionCode: opts?.promo || undefined,
+          customerDetails: billingAddress ? { address: billingAddress, email } : (email ? { email } : undefined),
         })
       });
       const data = await res.json();
@@ -155,7 +157,7 @@ function ElementsInner() {
           if (customerId && priceId) {
             const res2 = await fetch('/api/subscribe/preview', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ customerId, priceId, customerDetails: email ? { email } : undefined })
+              body: JSON.stringify({ customerId, priceId, customerDetails: billingAddress ? { email, address: billingAddress } : (email ? { email } : undefined) })
             });
             const data2 = await res2.json();
             if (res2.ok) setTotals(data2);
@@ -171,7 +173,7 @@ function ElementsInner() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     }
-  }, [stripePromise, searchParams, isSignedIn, email, promotionCode, customerId, priceId]);
+  }, [stripePromise, searchParams, isSignedIn, email, promotionCode, customerId, priceId, billingAddress]);
 
   useEffect(() => {
     (async () => {
@@ -206,14 +208,14 @@ function ElementsInner() {
       try {
         const res = await fetch('/api/subscribe/preview', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ customerId, priceId, promotionCode: promotionCode || undefined, customerDetails: email ? { email } : undefined })
+          body: JSON.stringify({ customerId, priceId, promotionCode: promotionCode || undefined, customerDetails: billingAddress ? { email, address: billingAddress } : (email ? { email } : undefined) })
         });
         const data = await res.json();
         if (res.ok) setTotals(data);
       } catch {}
     }, 400);
     return () => clearTimeout(t);
-  }, [customerId, priceId, promotionCode, email, promoError, lastInvalidPromo]);
+  }, [customerId, priceId, promotionCode, email, promoError, lastInvalidPromo, billingAddress]);
 
   const appearance = {
     theme: 'night' as const,
@@ -294,6 +296,14 @@ function ElementsInner() {
                             />
                           )}
                         </div>
+                        <div className="pixel-border rounded-lg p-3">
+                          <div className="mb-2 text-white/80 text-xs">Dirección de facturación</div>
+                          <AddressElement
+                            options={{ mode: 'billing', fields: { phone: 'never' } }}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            onChange={(e: any)=> setBillingAddress(e?.value?.address || undefined)}
+                          />
+                        </div>
                         <CheckoutForm intentType={intentType} />
                       </div>
                       <div className="md:col-span-2 space-y-3">
@@ -346,5 +356,12 @@ function ElementsInner() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 

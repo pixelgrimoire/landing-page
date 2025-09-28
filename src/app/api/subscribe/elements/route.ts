@@ -6,9 +6,24 @@ import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
 
 export const runtime = 'nodejs';
 
+type CustomerAddress = {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+};
+
 export async function POST(req: NextRequest) {
   try {
-  const { planId, billingCycle, email, promotionCode } = (await req.json()) as { planId?: string; billingCycle?: 'monthly' | 'yearly'; email?: string; promotionCode?: string };
+  const { planId, billingCycle, email, promotionCode, customerDetails } = (await req.json()) as {
+      planId?: string;
+      billingCycle?: 'monthly' | 'yearly';
+      email?: string;
+      promotionCode?: string;
+      customerDetails?: { address?: CustomerAddress; name?: string; email?: string };
+    };
     if (!planId || !billingCycle) {
       return new Response(JSON.stringify({ error: 'Missing planId or billingCycle' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
@@ -61,17 +76,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // If we received an address, update the Customer before creating the subscription
+    try {
+      if (customerId && customerDetails?.address) {
+        await stripe.customers.update(customerId, { address: customerDetails.address });
+      }
+    } catch {}
+
     // Check if customer already has a usable address for Automatic Tax
     let hasLocation = false;
     try {
       if (customerId) {
-        const cust = await stripe.customers.retrieve(customerId);
-        if (typeof cust !== 'string') {
-          const billing = (cust.address && cust.address.country) ? cust.address.country : undefined;
-          // @ts-expect-error older stripe types may not include shipping on Customer
-          const shippingCountry: string | undefined = (cust.shipping && cust.shipping.address && cust.shipping.address.country) ? cust.shipping.address.country : undefined;
-          hasLocation = Boolean(billing || shippingCountry);
-        }
+        const resp = await stripe.customers.retrieve(customerId);
+        const cust = resp as unknown as { address?: { country?: string }; shipping?: { address?: { country?: string } } };
+        const billing: string | undefined = cust.address?.country;
+        const shippingCountry: string | undefined = cust.shipping?.address?.country;
+        hasLocation = Boolean(billing || shippingCountry);
       }
     } catch {}
 
@@ -81,8 +101,8 @@ export async function POST(req: NextRequest) {
       items: [{ price: priceId, quantity: 1 }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },
-      // Enable automatic tax only if we already know customer's location
-      automatic_tax: hasLocation ? { enabled: true } : undefined,
+      // Enable automatic tax if we know or just updated customer's address
+      automatic_tax: hasLocation || !!customerDetails?.address ? { enabled: true } : undefined,
       discounts: promotion_code_id ? [{ promotion_code: promotion_code_id }] : undefined,
       expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
       metadata: { planId, billingCycle, promotionCode: promotionCode || '' },
