@@ -50,6 +50,11 @@ export async function POST(req: NextRequest) {
       customer,
       customer_email: !customer && email && email.includes('@') ? email : undefined,
       allow_promotion_codes: true,
+      automatic_tax: { enabled: true },
+      billing_address_collection: 'auto',
+      tax_id_collection: { enabled: true },
+      customer_update: { address: 'auto', name: 'auto' },
+      customer_creation: 'if_required',
       return_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       metadata: { planId, billingCycle },
     });
@@ -60,4 +65,3 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
-
