@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node scripts/prebuild.mjs",
+    "prebuild": "prisma generate || echo prisma generate failed - continuing build",
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "vercel-build": "npm run migrate:deploy && npm run build",
     "start": "next start",
     "lint": "eslint",

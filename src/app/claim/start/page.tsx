@@ -4,8 +4,9 @@ import ClaimOtpForm from '@/components/claim/ClaimOtpForm';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-export default async function ClaimStart({ searchParams }: { searchParams: { token?: string } }) {
-  const token = (searchParams?.token || '').toString();
+export default async function ClaimStart({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+  const params = await searchParams;
+  const token = (params?.token || '').toString();
   if (!token) redirect('/');
   const tokenHash = hashToken(token);
   const claim = await prisma.claimToken.findUnique({ where: { tokenHash } });

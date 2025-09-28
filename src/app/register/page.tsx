@@ -4,8 +4,9 @@ import SignUpClaim from '@/components/SignUpClaim';
 import { hashToken } from '@/lib/tokens';
 import { prisma } from '@/lib/prisma';
 
-export default async function RegisterPage({ searchParams }: { searchParams: { token?: string } }) {
-  const token = (searchParams?.token || '').toString();
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
+  const params = await searchParams;
+  const token = (params?.token || '').toString();
   const cookieStore = await cookies();
   const cookieToken = cookieStore.get('pg_claim')?.value || '';
   const verifiedToken = cookieStore.get('pg_claim_verified')?.value || '';
