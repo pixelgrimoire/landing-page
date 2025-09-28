@@ -32,6 +32,7 @@ model Customer {
 
   subscriptions Subscription[]
   entitlements  Entitlement[]
+  projectSelections ProjectSelection[]
 }
 
 model Subscription {
@@ -97,4 +98,19 @@ model ClaimOtp {
   consumedAt DateTime?
 
   @@index([tokenHash])
+}
+
+model ProjectSelection {
+  id                String   @id @default(cuid())
+  customerId        String
+  entitlementCode   String   // Código de entitlement al que aplica la selección (p.ej. "pos.basic")
+  currentProject    String?  // slug del proyecto actual (p.ej. "qubito")
+  pendingProject    String?  // slug del siguiente proyecto elegido
+  pendingEffectiveAt DateTime? // cuándo se aplica el cambio (fin de período)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, entitlementCode])
 }

@@ -1,29 +1,24 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import MagicPlanCard from '@/components/MagicPlanCard';
 import { PLANS, type Plan } from '@/lib/constants';
 
 export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: boolean }) {
   const [yearly, setYearly] = useState(true);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const subscribe = async (plan: Plan) => {
+    // Route to embedded checkout page with parameters
     try {
       setLoading(true);
       const cycle = yearly ? 'yearly' : 'monthly';
       const storedEmail = typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || '') : '';
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId: plan.id, billingCycle: cycle, email: storedEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el checkout');
-      if (data?.url) window.location.href = data.url;
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'No se pudo iniciar el checkout';
-      alert(message);
+      const params = new URLSearchParams({ plan: plan.id, cycle });
+      if (storedEmail) params.set('email', storedEmail);
+      router.push(`/subscribe/elements?${params.toString()}`);
     } finally {
       setLoading(false);
     }
