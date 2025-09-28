@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
       customer_email: !customer && email && email.includes('@') ? email : undefined,
       allow_promotion_codes: true,
       automatic_tax: { enabled: true },
-      billing_address_collection: 'auto',
+      // Require a billing address to reliably determine location for Automatic Tax
+      billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
       customer_update: { address: 'auto', name: 'auto' },
       customer_creation: 'if_required',

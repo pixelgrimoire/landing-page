@@ -61,13 +61,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Check if customer already has a usable address for Automatic Tax
+    let hasLocation = false;
+    try {
+      if (customerId) {
+        const cust = await stripe.customers.retrieve(customerId);
+        if (typeof cust !== 'string') {
+          const billing = (cust.address && cust.address.country) ? cust.address.country : undefined;
+          // @ts-expect-error older stripe types may not include shipping on Customer
+          const shippingCountry: string | undefined = (cust.shipping && cust.shipping.address && cust.shipping.address.country) ? cust.shipping.address.country : undefined;
+          hasLocation = Boolean(billing || shippingCountry);
+        }
+      }
+    } catch {}
+
     // Create subscription in incomplete state to collect payment via Payment Element
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId, quantity: 1 }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },
-      automatic_tax: { enabled: true },
+      // Enable automatic tax only if we already know customer's location
+      automatic_tax: hasLocation ? { enabled: true } : undefined,
       discounts: promotion_code_id ? [{ promotion_code: promotion_code_id }] : undefined,
       expand: ['latest_invoice.payment_intent', 'pending_setup_intent'],
       metadata: { planId, billingCycle, promotionCode: promotionCode || '' },
