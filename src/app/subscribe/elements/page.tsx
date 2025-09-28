@@ -79,7 +79,7 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
 
 export default function ElementsSubscribePage() {
   return (
-    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-white/80">Cargandoâ€¦</div>}>
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-white/80">Cargando…</div>}>
       <ElementsInner />
     </Suspense>
   );
@@ -108,7 +108,7 @@ function ElementsInner() {
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
 
   function formatMoney(amountMinor: number | null | undefined, currency: string) {
-    if (amountMinor == null) return 'â€”';
+    if (amountMinor == null) return '—';
     try {
       const amt = amountMinor / 100;
       return new Intl.NumberFormat('es-MX', { style: 'currency', currency: (currency || 'USD').toUpperCase() }).format(amt);
@@ -135,7 +135,7 @@ function ElementsInner() {
         body: JSON.stringify({
           planId,
           billingCycle,
-          // Si no estÃ¡ logueado, enviamos el email capturado; si estÃ¡ logueado, no es necesario
+          // Si no está logueado, enviamos el email capturado; si está logueado, no es necesario
           email: !isSignedIn ? (email || searchParams.get('email') || undefined) : undefined,
           promotionCode: opts?.promo || undefined,
           customerDetails: billingAddress ? { address: billingAddress, email } : (email ? { email } : undefined),
@@ -150,7 +150,7 @@ function ElementsInner() {
       setPriceId(data.price_id || null);
       // Inline feedback if promo code was invalid
       if (typeof data.promotion_invalid !== 'undefined' && data.promotion_invalid) {
-        setPromoError('CÃ³digo de promociÃ³n no vÃ¡lido.');
+        setPromoError('Código de promoción no válido.');
         setLastInvalidPromo(normalizePromo(opts?.promo || promotionCode));
         // Refresh preview WITHOUT promo to clear any lingering discount in the summary
         try {
@@ -178,7 +178,7 @@ function ElementsInner() {
   useEffect(() => {
     (async () => {
       if (!stripePromise) { setError('Stripe publishable key missing'); return; }
-      // Si estÃ¡ logueado o ya viene email en query, creamos la sesiÃ³n de inmediato
+      // Si está logueado o ya viene email en query, creamos la sesión de inmediato
       const emailFromQuery = searchParams.get('email');
       if (isSignedIn || emailFromQuery) {
         setLoading(true);
@@ -187,7 +187,7 @@ function ElementsInner() {
     })();
   }, [searchParams, stripePromise, isSignedIn, createSession]);
 
-  // Si no estÃ¡ logueado y no se ha creado sesiÃ³n aÃºn, crÃ©ala cuando el usuario ingrese email
+  // Si no está logueado y no se ha creado sesión aún, créala cuando el usuario ingrese email
   useEffect(() => {
     if (!stripePromise) return;
     if (isSignedIn) return;
@@ -276,18 +276,18 @@ function ElementsInner() {
             {!error && (
               <div className="relative min-h-[560px]">
                 {!clientSecret || !stripePromise || !intentType ? (
-                  <div className="absolute inset-0 grid place-items-center text-white/60">
-                    <div className="animate-pulse">Cargandoâ€¦</div>
+                    <div className="absolute inset-0 grid place-items-center text-white/60">
+                      <div className="animate-pulse">Cargando…</div>
                   </div>
                 ) : (
                   <Elements options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       <div className="md:col-span-3 space-y-4">
                         <div className="pixel-border rounded-lg p-3">
-                          <div className="mb-2 text-white/80 text-xs">Correo electrÃ³nico</div>
+                          <div className="mb-2 text-white/80 text-xs">Correo electrónico</div>
                           {isSignedIn ? (
                             <div className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/80 text-sm select-none cursor-not-allowed">
-                              {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || 'â€”'}
+                              {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '—'}
                             </div>
                           ) : (
                             <LinkAuthenticationElement
@@ -312,7 +312,7 @@ function ElementsInner() {
                           <div className="text-xs text-white/70">Plan</div>
                           <div className="text-white mb-2">{planIdLabel} ({billingCycleLabel})</div>
                           <div className="text-xs text-white/70">Precio</div>
-                          <div className="text-white mb-2">{price ? `${formatMoney(price.unit_amount, price.currency)} / ${price.interval === 'year' ? 'aÃ±o' : price.interval === 'month' ? 'mes' : price.interval}` : 'â€”'}</div>
+                          <div className="text-white mb-2">{price ? `${formatMoney(price.unit_amount, price.currency)} / ${price.interval === 'year' ? 'año' : price.interval === 'month' ? 'mes' : price.interval}` : '—'}</div>
                           {totals?.lineDescription && (
                             <div className="text-xs text-white/60 -mt-1 mb-2">{totals.lineDescription}</div>
                           )}
@@ -320,25 +320,25 @@ function ElementsInner() {
                             <div className="text-sm text-white/80 mt-3 space-y-1">
                               <div className="flex justify-between"><span className="text-white/70">Subtotal</span><span>{formatMoney(totals.subtotal ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
                               {!!(totals.discount && totals.discount > 0) && (
-                                <div className="flex justify-between"><span className="text-white/70">Ahorro cupÃ³n</span><span>-{formatMoney(totals.discount ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
+                                <div className="flex justify-between"><span className="text-white/70">Ahorro cupón</span><span>-{formatMoney(totals.discount ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
                               )}
                               <div className="flex justify-between"><span className="text-white/70">Impuestos</span><span>{formatMoney(totals.tax ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
                               <div className="flex justify-between font-semibold"><span>Total hoy</span><span>{formatMoney(totals.total ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
                             </div>
                           )}
-                          {!totals && (<div className="mt-3 text-xs text-white/50">Impuestos calculados automÃ¡ticamente al confirmar.</div>)}
+                          {!totals && (<div className="mt-3 text-xs text-white/50">Impuestos calculados automáticamente al confirmar.</div>)}
                         </div>
                         <div className="pixel-border rounded-lg p-3">
-                          <div className="text-xs text-white/70 mb-1">CÃ³digo de promociÃ³n</div>
+                          <div className="text-xs text-white/70 mb-1">Código de promoción</div>
                           <div className="flex gap-2">
                             <input value={promotionCode} onChange={(e)=>{ const v = e.target.value; setPromotionCode(v); if (promoError) setPromoError(null); }} placeholder="PROMO" className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-2 text-sm" />
-                            <button disabled={applying || !promotionCode || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))} onClick={async()=>{ setApplying(true); try { await createSession({ promo: promotionCode }); } finally { setApplying(false); } }} className="px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60">{applying ? 'Aplicandoâ€¦' : 'Aplicar'}</button>
+                            <button disabled={applying || !promotionCode || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))} onClick={async()=>{ setApplying(true); try { await createSession({ promo: promotionCode }); } finally { setApplying(false); } }} className="px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60">{applying ? 'Aplicando…' : 'Aplicar'}</button>
                           </div>
                           {promoError && (<div className="text-[11px] text-red-300 mt-1">{promoError}</div>)}
-                          <div className="text-[11px] text-white/50 mt-1">Si el cÃ³digo es vÃ¡lido, el total se actualizarÃ¡ al confirmar.</div>
+                          <div className="text-[11px] text-white/50 mt-1">Si el código es válido, el total se actualizará al confirmar.</div>
                         </div>
                         <div className="text-[11px] text-white/50">
-                          Al suscribirte autorizas cargos recurrentes segÃºn el plan seleccionado. Consulta nuestras <a className="underline hover:text-white" href="/terms" target="_blank">Condiciones</a> y <a className="underline hover:text-white" href="/privacy" target="_blank">Privacidad</a>.
+                          Al suscribirte autorizas cargos recurrentes según el plan seleccionado. Consulta nuestras <a className="underline hover:text-white" href="/terms" target="_blank">Condiciones</a> y <a className="underline hover:text-white" href="/privacy" target="_blank">Privacidad</a>.
                         </div>
                       </div>
                     </div>
@@ -348,8 +348,8 @@ function ElementsInner() {
             )}
           </div>
           <div className="px-4 pb-4 text-[11px] text-white/40 smooth-font flex items-center justify-between">
-            <Link href="/#pricing" className="text-white/60 hover:text-white">â† Volver a precios</Link>
-            <span>Al continuar aceptas nuestras condiciones. Â¿Dudas? Soporte.</span>
+            <Link href="/#pricing" className="text-white/60 hover:text-white">← Volver a precios</Link>
+            <span>Al continuar aceptas nuestras condiciones. ¿Dudas? Soporte.</span>
           </div>
         </div>
       </div>
