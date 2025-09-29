@@ -14,23 +14,12 @@ type Props = {
   email?: string;
 };
 
-function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
+function CheckoutForm({ intentType, customerId, subscriptionId }: { intentType: 'payment' | 'setup'; customerId?: string | null; subscriptionId?: string | null }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
-  const [layoutType, setLayoutType] = useState<'tabs' | 'accordion'>(
-    () => (typeof window !== 'undefined' && window.innerWidth <= 640 ? 'accordion' : 'tabs')
-  );
-
-  useEffect(() => {
-    const onResize = () => {
-      const next = window.innerWidth <= 640 ? 'accordion' : 'tabs';
-      setLayoutType(prev => (prev === next ? prev : next));
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,15 +27,19 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
     setSubmitting(true);
     let error;
     setErrMsg(null);
+    const params = new URLSearchParams({ checkout: 'success' });
+    if (customerId) params.set('customer_id', customerId);
+    if (subscriptionId) params.set('subscription_id', subscriptionId);
+    const returnUrl = `${window.location.origin}/subscribe/success?${params.toString()}`;
     if (intentType === 'setup') {
       ({ error } = await stripe.confirmSetup({
         elements,
-        confirmParams: { return_url: `${window.location.origin}/subscribe/success?checkout=success` },
+        confirmParams: { return_url: returnUrl },
       }));
     } else {
       ({ error } = await stripe.confirmPayment({
         elements,
-        confirmParams: { return_url: `${window.location.origin}/subscribe/success?checkout=success` },
+        confirmParams: { return_url: returnUrl },
       }));
     }
     if (error) setErrMsg(error.message || 'No se pudo confirmar el pago');
@@ -54,19 +47,10 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3">
       {errMsg && (
         <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded p-2">{errMsg}</div>
       )}
-      <div className="pixel-border rounded-lg p-3">
-        <PaymentElement
-          key={layoutType}
-          options={{
-            layout: { type: layoutType, defaultCollapsed: layoutType === 'accordion' },
-            fields: { billingDetails: { name: 'auto', email: 'never', address: 'auto' } },
-          }}
-        />
-      </div>
       <button type="submit" disabled={submitting || !stripe || !elements} className="btn w-full px-4 py-3 rounded-md bg-yellow-400 text-black pixel-font text-[12px] tracking-wider hover:bg-yellow-300 disabled:opacity-60">
         {submitting ? 'Procesando…' : 'Pagar y suscribirse'}
       </button>
@@ -82,12 +66,16 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const [intentType, setIntentType] = useState<'payment' | 'setup' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [layoutType, setLayoutType] = useState<'tabs' | 'accordion'>(
+    () => (typeof window !== 'undefined' && window.innerWidth <= 640 ? 'accordion' : 'tabs')
+  );
   const [promotionCode, setPromotionCode] = useState('');
   const [applying, setApplying] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [lastInvalidPromo, setLastInvalidPromo] = useState<string | null>(null);
   const [price, setPrice] = useState<{ unit_amount: number | null; currency: string; interval: 'day'|'week'|'month'|'year' } | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | undefined>(initialEmail);
   const [emailComplete, setEmailComplete] = useState<boolean>(!!(initialEmail && /.+@.+\..+/.test(initialEmail)));
@@ -96,6 +84,15 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
   const [emailTouched, setEmailTouched] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => {
+      const next = window.innerWidth <= 640 ? 'accordion' : 'tabs';
+      setLayoutType(prev => (prev === next ? prev : next));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   function formatMoney(amountMinor: number | null | undefined, currency: string) {
     if (amountMinor == null) return '—';
@@ -135,6 +132,7 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
       setIntentType(data.intent_type === 'setup' ? 'setup' : 'payment');
       setPrice(data.price || null);
       setCustomerId(data.customer_id || null);
+      setSubscriptionId(data.subscription_id || null);
       setPriceId(data.price_id || null);
       if (typeof data.promotion_invalid !== 'undefined' && data.promotion_invalid) {
         setPromoError('Código de promoción no válido.');
@@ -214,14 +212,14 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   } as const;
 
   return (
-    <div className="relative w-full max-w-3xl rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
+    <div className="relative w-full max-w-5xl rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
       {/* Pixel-art close button anchored to the card */}
       <button aria-label="Cerrar" onClick={onClose} className="pixel-close-btn -top-5 -right-5 z-20" title="Cerrar">
         <span className="btn-face" />
       </button>
       {(() => { const glowStyle = { ['--glow' as unknown as string]: '#FACC15' } as CSSProperties; return (<div className="edge-glow" style={glowStyle} />); })()}
       <div className="absolute inset-0 rounded-xl pointer-events-none ring-1 ring-white/5" />
-      <div className="relative p-4 sm:p-6">
+      <div className="relative p-4 sm:p-6 max-h-[85vh] overflow-auto magic-scroll">
         {loading && (<div className="absolute top-3 right-3 text-[11px] text-white/60">Preparando…</div>)}
         <div className="mb-3 flex items-center justify-between text-white/80">
           <div className="flex items-center gap-2">
@@ -253,8 +251,22 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
               </div>
             ) : (
               <Elements options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div className="md:col-span-3 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Left: Payment element + submit */}
+                  <div className="md:col-span-6 space-y-4 min-w-0">
+                    <div className="pixel-border rounded-lg p-3">
+                      <PaymentElement
+                        key={layoutType}
+                        options={{
+                          layout: { type: layoutType, defaultCollapsed: layoutType === 'accordion' },
+                          fields: { billingDetails: { name: 'auto', email: 'never', address: 'auto' } },
+                        }}
+                      />
+                    </div>
+                    <CheckoutForm intentType={intentType} customerId={customerId} subscriptionId={subscriptionId} />
+                  </div>
+                  {/* Middle: Customer details (email + address) */}
+                  <div className="md:col-span-3 space-y-4 min-w-0">
                     <div className="pixel-border rounded-lg p-3">
                       <div className="mb-2 text-white/80 text-xs">Correo electrónico</div>
                       {isSignedIn ? (
@@ -280,9 +292,9 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
                         setBillingAddress(a ? { line1: a.line1, line2: a.line2 ?? undefined, city: a.city, state: a.state, postal_code: a.postal_code, country: a.country } : undefined);
                       }} />
                     </div>
-                    <CheckoutForm intentType={intentType} />
                   </div>
-                  <div className="md:col-span-2 space-y-3">
+                  {/* Right: Summary + promo */}
+                  <div className="md:col-span-3 space-y-3 min-w-0 sm:sticky sm:top-0 md:sticky md:top-0">
                     <div className="pixel-border rounded-lg p-4">
                       <div className="text-sm font-semibold mb-1">Resumen</div>
                       <div className="text-xs text-white/70">Plan</div>
@@ -306,9 +318,9 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
                     </div>
                     <div className="pixel-border rounded-lg p-3">
                       <div className="text-xs text-white/70 mb-1">Código de promoción</div>
-                      <div className="flex gap-2">
-                        <input value={promotionCode} onChange={(e)=>{ const v = e.target.value; setPromotionCode(v); if (promoError) setPromoError(null); }} placeholder="PROMO" className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-2 text-sm" />
-                        <button disabled={applying || !promotionCode || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))} onClick={async()=>{ setApplying(true); try { await createSession({ promo: promotionCode }); } finally { setApplying(false); } }} className="px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60">{applying ? 'Aplicando…' : 'Aplicar'}</button>
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-stretch gap-2 min-w-0">
+                        <input value={promotionCode} onChange={(e)=>{ const v = e.target.value; setPromotionCode(v); if (promoError) setPromoError(null); }} placeholder="PROMO" className="min-w-0 w-full bg-white/5 border border-white/10 rounded px-2 py-2 text-sm" />
+                        <button disabled={applying || !promotionCode || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))} onClick={async()=>{ setApplying(true); try { await createSession({ promo: promotionCode }); } finally { setApplying(false); } }} className="w-full sm:w-auto shrink-0 px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60">{applying ? 'Aplicando…' : 'Aplicar'}</button>
                       </div>
                       {promoError && (<div className="text-[11px] text-red-300 mt-1">{promoError}</div>)}
                       <div className="text-[11px] text-white/50 mt-1">Si el código es válido, el total se actualizará al confirmar.</div>

@@ -72,7 +72,23 @@ export default function GlobalStyle() {
       .pixel-close-btn .btn-face:before { content:'✕'; position:absolute; inset:0; display:grid; place-items:center; color:#3b1a03; font-family:'Press Start 2P', monospace; font-size:12px; line-height:1; text-shadow: 0 1px 0 #fde68a, 0 0 6px rgba(0,0,0,.35); }
       .pixel-close-btn:hover .btn-face { filter: brightness(1.05); box-shadow: inset -3px -3px 0 #d97706, inset 2px 2px 0 #fff3b0, 0 0 0 2px #fcd34d, 0 0 18px rgba(250,204,21,.75); }
       .pixel-close-btn:active .btn-face { transform: translateY(1px); box-shadow: inset -1px -1px 0 #b45309, inset 1px 1px 0 #fde68a, 0 0 0 2px #facc15, 0 0 10px rgba(250,204,21,.5); }
-    
+
+      /* Magic/pixel scrollbars (global and .magic-scroll containers) */
+      html, body, .magic-scroll { scrollbar-width: thin; scrollbar-color: var(--pg-gold) rgba(255,255,255,.08); }
+      /* WebKit */
+      ::-webkit-scrollbar { width: 12px; height: 12px; }
+      .magic-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); border-radius: 10px; }
+      .magic-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,.05); }
+      ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #facc15, #f59e0b); border-radius: 10px; border: 2px solid rgba(0,0,0,.35); box-shadow: 0 0 10px rgba(250,204,21,.35), inset 0 0 6px rgba(0,0,0,.25); }
+      ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #fbbf24, #f59e0b); box-shadow: 0 0 14px rgba(250,204,21,.6), inset 0 0 8px rgba(0,0,0,.25); }
+      ::-webkit-scrollbar-corner { background: transparent; }
+      /* Pixel edge accents on thumbs */
+      ::-webkit-scrollbar-thumb:before { content:""; display:block; height:100%; width:100%; }
+
+      /* Stabilize layout when scrollbars appear */
+      html { scrollbar-gutter: stable both-edges; }
+
       /* Gentle floating animation for hero visual (image + magic circle) */
       .float-slow { animation: floatY 6.5s ease-in-out infinite; will-change: transform; }
       .float-slower { animation: floatY 9s ease-in-out infinite; will-change: transform; }

@@ -104,9 +104,9 @@ export default function CheckoutModal({ open, onClose, planId, cycle, email }: P
     <div className="fixed inset-0 z-[100]">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="relative w-full max-w-3xl rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
+        <div className="relative w-full max-w-5xl rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
           <button aria-label="Cerrar" onClick={onClose} className="absolute top-2 right-2 text-white/60 hover:text-white px-2 py-1">✕</button>
-          <div className="relative p-4 sm:p-6 min-h-[560px]">
+          <div className="relative p-4 sm:p-6 min-h-[560px] max-h-[85vh] overflow-auto magic-scroll">
             {error ? (
               <div className="text-red-300 space-y-3">
                 <div>{error}</div>
