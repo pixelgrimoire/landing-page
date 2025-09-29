@@ -6,7 +6,7 @@
     "prebuild": "prisma generate || echo prisma generate failed - continuing build",
     "dev": "next dev --turbopack",
     "build": "next build",
-    "vercel-build": "npm run migrate:deploy && npm run build",
+    "vercel-build": "(npm run migrate:deploy || npm run db:push) && npm run build",
     "start": "next start",
     "lint": "eslint",
     "prisma:generate": "prisma generate",
