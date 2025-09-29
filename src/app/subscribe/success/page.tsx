@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import GlobalStyle from '@/components/GlobalStyle';
 import PostCheckoutOnboardingModal from '@/components/PostCheckoutOnboardingModal';
 
 export default function SubscribeSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen grid place-items-center text-white/80">Cargando…</div>}>
+      <SuccessInner />
+    </Suspense>
+  );
+}
+
+function SuccessInner() {
   const sp = useSearchParams();
   const [open, setOpen] = useState(true);
   const customerId = sp.get('customer_id');
 
-  useEffect(() => {
-    // auto-open on mount
-    setOpen(true);
-  }, []);
+  useEffect(() => { setOpen(true); }, []);
 
   return (
     <div className="pg-bg min-h-screen text-white">
@@ -26,4 +31,3 @@ export default function SubscribeSuccessPage() {
     </div>
   );
 }
-
