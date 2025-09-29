@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRitualSummon } from "@/components/useRitualSummon";
 
-export default function Work() {
+export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }) {
   const items = [
     {
       title: 'Qubito POS',
@@ -22,12 +22,17 @@ export default function Work() {
     },
   ];
 
-  const ritual = useRitualSummon({color: "#818cf8", durationMs: 2200, intensity: 1});
+  const ritual = useRitualSummon({color: "#818cf8", durationMs: magicEnabled ? 2200 : 1, intensity: magicEnabled ? 1 : 0.8});
   const [selected, setSelected] = useState<{ title: string; desc: string; mockupUrl?: string } | null>(null);
+  const [simpleOpen, setSimpleOpen] = useState(false);
 
   const onCardClick = (it: { title: string; desc: string; mockupUrl?: string }) => {
     setSelected(it);
-    ritual.begin();
+    if (magicEnabled) {
+      ritual.begin();
+    } else {
+      setSimpleOpen(true);
+    }
   };
 
   return (
@@ -72,6 +77,30 @@ export default function Work() {
             <p className="text-zinc-300">{selected?.desc ?? "Detalle del proyecto"}</p>
           )}
         </ritual.RitualPortal>
+      )}
+
+      {/* Simple modal (no magic) */}
+      {!magicEnabled && simpleOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setSimpleOpen(false)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-[1200px] bg-zinc-900/95 border border-white/10 rounded-xl shadow-xl">
+              <div className="p-3 flex items-center justify-between border-b border-white/10">
+                <div className="text-white/90 font-semibold smooth-font">{selected?.title ?? 'Proyecto'}</div>
+                <button onClick={() => setSimpleOpen(false)} className="px-3 py-1 rounded-md border border-white/20 text-white/80 hover:bg-white/5">Cerrar</button>
+              </div>
+              <div className="p-0">
+                {selected?.mockupUrl ? (
+                  <div style={{width: '100%', maxWidth: 1200, height: '70vh', margin: '0 auto'}}>
+                    <iframe src={selected.mockupUrl} title={selected?.title || 'Demo'} style={{width: '100%', height: '100%', border: 'none', borderRadius: 12, background: '#f1f5f9'}} allowFullScreen />
+                  </div>
+                ) : (
+                  <div className="p-4 text-zinc-300 smooth-font">{selected?.desc ?? 'Detalle del proyecto'}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

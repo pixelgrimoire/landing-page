@@ -20,10 +20,11 @@ export default function GlobalStyle() {
       .pixelated { image-rendering: pixelated; }
       .pg-bg { background: radial-gradient(1200px 800px at 60% 10%, rgba(37,99,235,.25), transparent 60%),
                              radial-gradient(900px 600px at 40% 80%, rgba(107,33,168,.18), transparent 65%),
-                             linear-gradient(180deg, var(--pg-ink), var(--pg-night)); }
+                             linear-gradient(180deg, var(--pg-ink), var(--pg-night)); transition: background .45s ease; }
+      .pg-bg[data-magic='off'] { background: linear-gradient(180deg, #0b0f17, #0b0f17); }
       .glass { background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); backdrop-filter: blur(6px); }
       .pixel-border { position:relative; }
-      .pixel-border:before { content:""; position:absolute; inset:-6px; pointer-events:none;
+      .pixel-border:before { content:""; position:absolute; inset:-6px; pointer-events:none; transition: opacity .45s ease;
         background:
           linear-gradient(var(--pg-gold), var(--pg-gold)) top left / 6px 2px no-repeat,
           linear-gradient(var(--pg-gold), var(--pg-gold)) top left / 2px 6px no-repeat,
@@ -33,6 +34,7 @@ export default function GlobalStyle() {
           linear-gradient(var(--pg-gold), var(--pg-gold)) bottom left/ 2px 6px no-repeat,
           linear-gradient(var(--pg-gold), var(--pg-gold)) bottom right/ 6px 2px no-repeat,
           linear-gradient(var(--pg-gold), var(--pg-gold)) bottom right/ 2px 6px no-repeat; filter: drop-shadow(0 0 6px rgba(250,204,21,.55)); }
+      [data-magic='off'] .pixel-border:before { opacity: 0; }
       .btn { position:relative; }
       .btn:after { content:""; position:absolute; inset:2px -4px -4px 2px; background: rgba(0,0,0,.25); clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 6px 6px, 0 6px); }
       .runes { text-shadow: 0 0 8px rgba(250,204,21,.8), 0 0 20px rgba(37,99,235,.5); }
@@ -57,13 +59,22 @@ export default function GlobalStyle() {
       .magic-card:hover .card-glow, .magic-card.active .card-glow { opacity:.85; }
       .edge-glow { position:absolute; inset:-6px; border-radius:26px; pointer-events:none; box-shadow:0 0 22px var(--glow); opacity:.45; transition:opacity .3s ease; }
       .magic-card:hover .edge-glow { opacity:.9; }
+      [data-magic='off'] .edge-glow { opacity: 0 !important; }
       .highlight { position:absolute; width:60%; height:60%; border-radius:50%; left:50%; top:50%; transform:translate(-50%,-50%); background: radial-gradient(circle at center, rgba(255,255,255,.5), rgba(255,255,255,.1) 40%, transparent 70%); opacity:0; filter: blur(10px); transition:opacity .3s ease, transform .3s ease; pointer-events:none; }
       .magic-card.active .highlight { opacity:.9; }
+      [data-magic='off'] .highlight { opacity: 0; }
       .mag-circle { position:absolute; width:220px; height:220px; left:50%; top:50%; transform:translate(-50%,-50%); border-radius:50%; border:2px solid var(--glow); box-shadow:0 0 20px var(--glow), inset 0 0 16px var(--glow); opacity:.9; animation: spin 22s linear infinite; }
       @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
       .rune { position:absolute; font-size:1.6rem; color: var(--glow); filter: drop-shadow(0 0 10px var(--glow)); opacity:0; transition: opacity .4s ease, transform .6s ease; pointer-events:none; }
       .magic-card.flipped .rune { opacity:1; }
       .rune-sprite { position:absolute; filter: drop-shadow(0 0 10px rgba(250,204,21,0.9)); opacity:0; will-change: transform, opacity, filter; }
+
+      /* Hero overrides for serious mode */
+      .hero-title { transition: all .35s ease; }
+      [data-magic='off'] .hero-title { color:#fff; background:none !important; -webkit-text-fill-color:#fff; text-shadow:none; }
+      [data-magic='off'] .hero-primary { background: rgba(255,255,255,.12) !important; color:#fff !important; border:1px solid rgba(255,255,255,.18); }
+      [data-magic='off'] .hero-primary:hover { background: rgba(255,255,255,.18) !important; filter:none; }
+      [data-magic='off'] .hero-secondary { background: transparent !important; border-color: rgba(255,255,255,.22) !important; }
 
       /* Pixel-style close button (retro octagon coin) */
       .pixel-close-btn { position:absolute; width:42px; height:42px; display:grid; place-items:center; cursor:pointer; }
@@ -89,6 +100,20 @@ export default function GlobalStyle() {
       /* Stabilize layout when scrollbars appear */
       html { scrollbar-gutter: stable both-edges; }
 
+      /* Hide rune layers and extra sparkles when magic is off */
+      [data-magic='off'] .runes, [data-magic='off'] .rune, [data-magic='off'] .rune-sprite { display: none !important; }
+      [data-magic='off'] .pixel-font { font-family:'Inter', ui-sans-serif, system-ui; letter-spacing: 0; text-transform: none; }
+      [data-magic='off'] .pixelated { image-rendering: auto; }
+      [data-magic='off'] .glass { background: rgba(255,255,255,.04); backdrop-filter: none; border-color: rgba(255,255,255,.12); }
+      [data-magic='off'] .btn:after { display: none; }
+      [data-magic='off'] .magic-card .magic-inner { transform: none !important; }
+      [data-magic='off'] .magic-card { box-shadow: none; }
+      [data-magic='off'] .pixel-close-btn { width:36px; height:36px; }
+      [data-magic='off'] .pixel-close-btn .btn-face { clip-path: none; background: rgba(255,255,255,.1); border-radius: 9999px; box-shadow: none; }
+      [data-magic='off'] .pixel-close-btn .btn-face:before { font-family:'Inter', ui-sans-serif, system-ui; font-size:14px; color:#fff; text-shadow:none; }
+      [data-magic='off'] .pixel-close-btn:hover .btn-face { filter:none; background: rgba(255,255,255,.18); }
+      [data-magic='off'] .pixel-close-btn:active .btn-face { transform:none; }
+    
       /* Gentle floating animation for hero visual (image + magic circle) */
       .float-slow { animation: floatY 6.5s ease-in-out infinite; will-change: transform; }
       .float-slower { animation: floatY 9s ease-in-out infinite; will-change: transform; }

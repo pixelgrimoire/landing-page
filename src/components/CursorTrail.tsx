@@ -17,6 +17,13 @@ export default function CursorTrail({ enabled = true }: { enabled?: boolean }) {
     const timer = setInterval(()=> mounted && setBits(p=>p.map(b=>({...b, life:b.life-60})).filter(b=>b.life>0)),60);
     return ()=>{ mounted=false; window.removeEventListener('pointermove', onMove); clearInterval(timer); };
   }, [enabled]);
+
+  // Clear particles when disabling to avoid frozen dots
+  useEffect(() => {
+    if (!enabled) setBits([]);
+  }, [enabled]);
+
+  if (!enabled) return null;
   return <div className="pointer-events-none fixed inset-0 z-[60]">{bits.map(b=>(<div key={b.id} className="absolute pixelated" style={{left:b.x,top:b.y,width:b.size,height:b.size,transform:'translate(-50%, -50%)',background:`rgba(37,99,235,${clamp(b.life/900,0,1)})`,boxShadow:`0 0 12px rgba(37,99,235,${clamp(b.life/500,0,1)})`}}/>))}</div>;
 }
 

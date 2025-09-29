@@ -62,6 +62,7 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const stripePromise = useMemo(() => (publishableKey ? loadStripe(publishableKey) : null), [publishableKey]);
   const { user, isSignedIn } = useUser();
+  const [seriousMode, setSeriousMode] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [intentType, setIntentType] = useState<'payment' | 'setup' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +85,17 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
   const [emailTouched, setEmailTouched] = useState(false);
+
+  // Detect global magic toggle to adapt Stripe appearance (serious mode)
+  useEffect(() => {
+    const el = document.querySelector('[data-magic]') as HTMLElement | null;
+    const setFromAttr = () => setSeriousMode(el?.getAttribute('data-magic') === 'off');
+    setFromAttr();
+    if (!el) return;
+    const mo = new MutationObserver(setFromAttr);
+    mo.observe(el, { attributes: true, attributeFilter: ['data-magic'] });
+    return () => mo.disconnect();
+  }, []);
 
   useEffect(() => {
     const onResize = () => {
@@ -186,30 +198,57 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
     return () => clearTimeout(t);
   }, [customerId, priceId, promotionCode, email, promoError, lastInvalidPromo, billingAddress]);
 
-  const appearance = {
-    theme: 'night' as const,
-    variables: {
-      colorPrimary: '#FACC15',
-      colorBackground: '#0b1220',
-      colorText: '#e5e7eb',
-      colorTextSecondary: '#9ca3af',
-      colorIcon: '#9ca3af',
-      colorDanger: '#f87171',
-      fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu',
-      borderRadius: '10px',
-      spacingUnit: '6px',
-    },
-    rules: {
-      '.Label': { color: 'rgba(255,255,255,0.7)' },
-      '.Error': { color: '#fca5a5' },
-      '.Input': { backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' },
-      '.Input:focus': { outline: 'none', boxShadow: '0 0 0 2px rgba(250,204,21,0.45)' },
-      '.Input--invalid': { borderColor: '#f87171' },
-      '.Tab, .Block': { backgroundColor: 'rgba(255,255,255,0.03)', boxShadow: 'none', border: '1px solid rgba(255,255,255,0.06)' },
-      '.Tab:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-      '.Tab--selected': { borderColor: 'rgba(250,204,21,0.5)' },
+  const appearance = useMemo(() => {
+    if (seriousMode) {
+      return {
+        theme: 'night' as const,
+        variables: {
+          colorPrimary: '#e5e7eb',
+          colorBackground: '#0b1220',
+          colorText: '#e5e7eb',
+          colorTextSecondary: '#9ca3af',
+          colorIcon: '#9ca3af',
+          colorDanger: '#ef4444',
+          fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu',
+          borderRadius: '8px',
+          spacingUnit: '6px',
+        },
+        rules: {
+          '.Label': { color: 'rgba(255,255,255,0.75)' },
+          '.Error': { color: '#fca5a5' },
+          '.Input': { backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' },
+          '.Input:focus': { outline: 'none', boxShadow: '0 0 0 2px rgba(255,255,255,0.35)' },
+          '.Tab, .Block': { backgroundColor: 'rgba(255,255,255,0.04)', boxShadow: 'none', border: '1px solid rgba(255,255,255,0.08)' },
+          '.Tab:hover': { backgroundColor: 'rgba(255,255,255,0.06)' },
+          '.Tab--selected': { borderColor: 'rgba(255,255,255,0.35)' },
+        },
+      } as const;
     }
-  } as const;
+    return {
+      theme: 'night' as const,
+      variables: {
+        colorPrimary: '#FACC15',
+        colorBackground: '#0b1220',
+        colorText: '#e5e7eb',
+        colorTextSecondary: '#9ca3af',
+        colorIcon: '#9ca3af',
+        colorDanger: '#f87171',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu',
+        borderRadius: '10px',
+        spacingUnit: '6px',
+      },
+      rules: {
+        '.Label': { color: 'rgba(255,255,255,0.7)' },
+        '.Error': { color: '#fca5a5' },
+        '.Input': { backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' },
+        '.Input:focus': { outline: 'none', boxShadow: '0 0 0 2px rgba(250,204,21,0.45)' },
+        '.Input--invalid': { borderColor: '#f87171' },
+        '.Tab, .Block': { backgroundColor: 'rgba(255,255,255,0.03)', boxShadow: 'none', border: '1px solid rgba(255,255,255,0.06)' },
+        '.Tab:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
+        '.Tab--selected': { borderColor: 'rgba(250,204,21,0.5)' },
+      },
+    } as const;
+  }, [seriousMode]);
 
   return (
     <div className="relative w-full max-w-5xl rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
