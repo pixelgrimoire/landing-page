@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { SignedIn, SignedOut, SignIn, SignUp, useUser } from '@clerk/nextjs';
+import { SignedOut, SignIn, SignUp, useUser } from '@clerk/nextjs';
 
 type Props = {
   open: boolean;
@@ -160,4 +160,3 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRitualSummon } from "@/components/useRitualSummon";
 
 export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }) {

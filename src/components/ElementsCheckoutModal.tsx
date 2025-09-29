@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement, AddressElement } from '@stripe/react-stripe-js';
 import type { StripeAddressElementChangeEvent, StripeLinkAuthenticationElementChangeEvent } from '@stripe/stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type Appearance } from '@stripe/stripe-js';
 import { useUser } from '@clerk/nextjs';
 
 type Props = {
@@ -198,7 +198,7 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
     return () => clearTimeout(t);
   }, [customerId, priceId, promotionCode, email, promoError, lastInvalidPromo, billingAddress]);
 
-  const appearance = useMemo(() => {
+  const appearance = useMemo<Appearance>(() => {
     if (seriousMode) {
       return {
         theme: 'night' as const,
@@ -218,11 +218,12 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
           '.Error': { color: '#fca5a5' },
           '.Input': { backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' },
           '.Input:focus': { outline: 'none', boxShadow: '0 0 0 2px rgba(255,255,255,0.35)' },
+          '.Input--invalid': { borderColor: '#ef4444' },
           '.Tab, .Block': { backgroundColor: 'rgba(255,255,255,0.04)', boxShadow: 'none', border: '1px solid rgba(255,255,255,0.08)' },
           '.Tab:hover': { backgroundColor: 'rgba(255,255,255,0.06)' },
           '.Tab--selected': { borderColor: 'rgba(255,255,255,0.35)' },
         },
-      } as const;
+      } as Appearance;
     }
     return {
       theme: 'night' as const,
@@ -247,7 +248,7 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
         '.Tab:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
         '.Tab--selected': { borderColor: 'rgba(250,204,21,0.5)' },
       },
-    } as const;
+    } as Appearance;
   }, [seriousMode]);
 
   return (
