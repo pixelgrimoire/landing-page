@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import GlobalStyle from '@/components/GlobalStyle';
 import Nav from '@/components/Nav';
 import CursorTrail from '@/components/CursorTrail';
@@ -13,9 +13,11 @@ import Footer from '@/components/Footer';
 import RuneEmitter from '@/components/RuneEmitter';
 import Starfield from '@/components/Starfield';
 import Cloudfield from '@/components/Cloudfield';
+import SnesSceneTransition, { SnesSceneTransitionHandle } from '@/components/SnesSceneTransition';
 
 export default function PixelGrimoireLanding() {
   const [magicEnabled, setMagicEnabled] = useState(true);
+  const transitionRef = useRef<SnesSceneTransitionHandle | null>(null);
   // Persist toggle across visits (on mount)
   useEffect(() => {
     try {
@@ -27,10 +29,18 @@ export default function PixelGrimoireLanding() {
     <div className="pg-bg min-h-screen text-white relative overflow-x-clip transition-colors duration-500" data-magic={magicEnabled ? 'on' : 'off'}>
       <GlobalStyle />
       <Nav magicEnabled={magicEnabled} onToggleMagicAction={() => {
-        setMagicEnabled(v => {
-          const next = !v; try { localStorage.setItem('pg_magic', next ? 'on' : 'off'); } catch {}
-          return next;
+        const next = !magicEnabled;
+        const applyToggleTo = () => {
+          try { localStorage.setItem('pg_magic', next ? 'on' : 'off'); } catch {}
+          setMagicEnabled(() => next);
+        };
+        const tl = transitionRef.current?.play({
+          mode: 'runes',
+          variant: next ? 'explode' : 'implode',
+          onMidway: applyToggleTo,
+          duration: 1.05,
         });
+        if (!tl) applyToggleTo();
       }} />
       <CursorTrail enabled={magicEnabled} />
       {/* Runas globales detrás de todo el contenido */}
@@ -53,6 +63,15 @@ export default function PixelGrimoireLanding() {
         <Tech />
       </main>
       <Footer />
+      {/* Fullscreen scene transition overlay */}
+      <SnesSceneTransition
+        ref={transitionRef}
+        tileCols={24}
+        tileRows={14}
+        duration={1.1}
+        scanlines={false}
+        palette={["#0b0f17", "#121a2a", "#1b2240", "#3a2e73", "#7b00ff"]}
+      />
     </div>
   );
 }
