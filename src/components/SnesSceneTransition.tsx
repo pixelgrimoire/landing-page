@@ -30,6 +30,9 @@ export type SnesSceneTransitionProps = {
 const makeArray = (n: number) => Array.from({ length: n }, (_, i) => i);
 const defaultPalette = ["#0b0f17", "#121a2a", "#1b2240", "#3a2e73", "#7b00ff"];
 
+// Ensure SSR/CSR parity for SVG geometry to avoid hydration mismatches
+const r4 = (n: number) => Number(n.toFixed(4));
+
 function buildTilesTimeline(
   wrapEl: HTMLDivElement,
   cols: number,
@@ -389,16 +392,16 @@ export const SnesSceneTransition = React.forwardRef<SnesSceneTransitionHandle, S
                 <circle cx="50" cy="50" r="18" strokeOpacity="0.7" />
                 {Array.from({ length: 6 }).map((_, i) => {
                   const angle = (i * Math.PI * 2) / 6;
-                  const x1 = 50 + Math.cos(angle) * 18;
-                  const y1 = 50 + Math.sin(angle) * 18;
-                  const x2 = 50 + Math.cos(angle + Math.PI / 3) * 28;
-                  const y2 = 50 + Math.sin(angle + Math.PI / 3) * 28;
+                  const x1 = r4(50 + Math.cos(angle) * 18);
+                  const y1 = r4(50 + Math.sin(angle) * 18);
+                  const x2 = r4(50 + Math.cos(angle + Math.PI / 3) * 28);
+                  const y2 = r4(50 + Math.sin(angle + Math.PI / 3) * 28);
                   return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} strokeOpacity="0.75" />;
                 })}
                 {Array.from({ length: 12 }).map((_, i) => {
                   const a = (i * Math.PI * 2) / 12;
-                  const x = 50 + Math.cos(a) * 34;
-                  const y = 50 + Math.sin(a) * 34;
+                  const x = r4(50 + Math.cos(a) * 34);
+                  const y = r4(50 + Math.sin(a) * 34);
                   return <circle key={`r-${i}`} cx={x} cy={y} r="1.2" stroke="none" fill="#d8c8ff" />;
                 })}
               </g>
