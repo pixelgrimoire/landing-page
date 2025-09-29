@@ -110,8 +110,8 @@ function buildRunesTimeline(
   tl.set(shards, {
     opacity: variant === "implode" ? 1 : 0,
     scale: variant === "implode" ? 1 : 0.6,
-    x: variant === "implode" ? (i) => randX() : 0,
-    y: variant === "implode" ? (i) => randY() : 0,
+    x: variant === "implode" ? () => randX() : 0,
+    y: variant === "implode" ? () => randY() : 0,
     rotate: () => gsap.utils.random(-180, 180),
   });
 
