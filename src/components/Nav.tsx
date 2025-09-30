@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { cls } from '@/lib/utils';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 function MagicToggleButton({ magicEnabled, onClick, className }: { magicEnabled: boolean; onClick: () => void; className?: string }) {
   const [tease, setTease] = useState(false);
@@ -76,13 +76,13 @@ function MagicToggleButton({ magicEnabled, onClick, className }: { magicEnabled:
       {/* sparkle layer */}
       {!magicEnabled && (
         <span aria-hidden className="pointer-events-none absolute inset-0 overflow-visible">
-          {sparks.map((s) => (
-            <span
-              key={s.id}
-              className="magic-spark"
-              style={{ left: s.left, top: s.top, ['--dx' as any]: `${s.dx}px`, ['--dur' as any]: `${s.dur}ms`, ['--c' as any]: s.color, ['--h' as any]: `${s.h}px` }}
-            />
-          ))}
+          {sparks.map((s) => {
+            type SparkStyle = CSSProperties & { ['--dx']?: string; ['--dur']?: string; ['--c']?: string; ['--h']?: string };
+            const sparkStyle: SparkStyle = { left: s.left, top: s.top, '--dx': `${s.dx}px`, '--dur': `${s.dur}ms`, '--c': s.color, '--h': `${s.h}px` };
+            return (
+              <span key={s.id} className="magic-spark" style={sparkStyle} />
+            );
+          })}
         </span>
       )}
       {magicEnabled ? '✨ Magic: ON' : '⛔ Magic: OFF'}
