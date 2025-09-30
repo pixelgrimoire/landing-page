@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { ensureDbUserFromClerk } from '@/lib/clerkUser';
-import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
+import { ensureStripeCustomerForUser, findOrCreateStripeCustomerIdByEmail } from '@/lib/stripeCustomer';
 
 export const runtime = 'nodejs';
 
@@ -59,8 +59,14 @@ export async function POST(req: NextRequest) {
 
     if (customer) {
       sessionParams.customer = customer;
+    } else if (email && email.includes('@')) {
+      const existingOrNew = await findOrCreateStripeCustomerIdByEmail(email);
+      if (existingOrNew) {
+        sessionParams.customer = existingOrNew;
+      } else {
+        sessionParams.customer_creation = 'if_required';
+      }
     } else {
-      if (email && email.includes('@')) sessionParams.customer_email = email;
       sessionParams.customer_creation = 'if_required';
     }
 

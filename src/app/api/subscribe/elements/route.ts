@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { auth, clerkClient } from '@clerk/nextjs/server';
 import { ensureDbUserFromClerk } from '@/lib/clerkUser';
-import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
+import { ensureStripeCustomerForUser, findOrCreateStripeCustomerIdByEmail } from '@/lib/stripeCustomer';
 
 export const runtime = 'nodejs';
 
@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
       const ensured = await ensureStripeCustomerForUser({ userId: dbUser.id, email: primaryEmail, name, currentCustomerId: dbUser.stripeCustomerId || null });
       if (ensured) customerId = ensured;
     } else if (email && email.includes('@')) {
-      const customer = await stripe.customers.create({ email });
-      customerId = customer.id;
+      const id = await findOrCreateStripeCustomerIdByEmail(email);
+      if (id) customerId = id;
     }
 
     if (!customerId) {

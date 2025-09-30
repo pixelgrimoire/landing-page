@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { auth, clerkClient } from '@clerk/nextjs/server';
-import { ensureStripeCustomerForUser } from '@/lib/stripeCustomer';
+import { ensureStripeCustomerForUser, findOrCreateStripeCustomerIdByEmail } from '@/lib/stripeCustomer';
 import { ensureDbUserFromClerk } from '@/lib/clerkUser';
 import { createToken, hashToken } from '@/lib/tokens';
 import { prisma } from '@/lib/prisma';
@@ -78,8 +78,14 @@ export async function POST(req: NextRequest) {
 
     if (customerId) {
       sessionParams.customer = customerId;
+    } else if (email && email.includes('@')) {
+      const existingOrNew = await findOrCreateStripeCustomerIdByEmail(email);
+      if (existingOrNew) {
+        sessionParams.customer = existingOrNew;
+      } else {
+        sessionParams.customer_creation = 'if_required';
+      }
     } else {
-      if (email && email.includes('@')) sessionParams.customer_email = email;
       sessionParams.customer_creation = 'if_required';
     }
 
