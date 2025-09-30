@@ -125,6 +125,41 @@ export default function GlobalStyle() {
       @media (prefers-reduced-motion: reduce) {
         .float-slow, .float-slower { animation: none !important; }
       }
+      /* Magic toggle attention effects (active even when magic is OFF) */
+      .magic-toggle { position: relative; overflow: visible; }
+      .magic-toggle.is-off {
+        /* soft golden breathing glow */
+        animation: glowPulse 2.6s ease-in-out infinite;
+        box-shadow: 0 0 0 0 rgba(250,204,21,0.0), 0 0 0 0 rgba(123,0,255,0.0);
+      }
+      @keyframes glowPulse {
+        0% { filter: drop-shadow(0 0 0px rgba(250,204,21,0.0)); }
+        35% { filter: drop-shadow(0 0 10px rgba(250,204,21,0.55)) drop-shadow(0 0 18px rgba(123,0,255,0.25)); }
+        70% { filter: drop-shadow(0 0 8px rgba(250,204,21,0.35)) drop-shadow(0 0 14px rgba(37,99,235,0.25)); }
+        100% { filter: drop-shadow(0 0 0px rgba(250,204,21,0.0)); }
+      }
+      .magic-toggle.tease { animation: nudge 1.1s cubic-bezier(.22,1,.36,1) 1; }
+      @keyframes nudge {
+        0% { transform: translate(0,0) rotate(0deg); }
+        10% { transform: translate(1px,-1px) rotate(-0.5deg); }
+        25% { transform: translate(-2px,2px) rotate(0.6deg); }
+        40% { transform: translate(2px,-2px) rotate(-0.8deg); }
+        60% { transform: translate(-1px,1px) rotate(0.5deg); }
+        80% { transform: translate(1px,0) rotate(-0.3deg); }
+        100% { transform: translate(0,0) rotate(0deg); }
+      }
+      .magic-spark {
+        position: absolute; width: 3px; height: 3px; border-radius: 0;
+        background: var(--c, #FACC15); opacity: 0; pointer-events: none;
+        box-shadow: 0 0 8px rgba(250,204,21,.7);
+        animation: sparkleUp var(--dur, 900ms) ease-out forwards;
+      }
+      @keyframes sparkleUp {
+        0% { opacity: 0; transform: translate(0, 0) scale(1); filter: blur(0); }
+        10% { opacity: .95; }
+        60% { opacity: .9; transform: translate(var(--dx, 0px), calc(-1 * var(--h, 26px))) scale(1); }
+        100% { opacity: 0; transform: translate(calc(var(--dx, 0px) * 1.2), calc(-1 * var(--h, 26px) - 10px)) scale(.9); filter: blur(1px); }
+      }
     `}</style>
   );
 }

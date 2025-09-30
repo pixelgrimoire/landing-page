@@ -25,6 +25,7 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
 
   const price = yearly ? plan.priceY : plan.priceM; const suffix = yearly ? '/año' : '/mes';
   const cardStyle: CSSGlowVars = { '--glow': plan.color } as CSSGlowVars;
+  const comingSoon = !!plan.comingSoon;
 
   return (
     <div ref={ref} className={`glass magic-card z-30 ${flipped ? 'flipped' : ''}`} style={cardStyle} onClick={(e: React.MouseEvent<HTMLDivElement>)=>{ const isBtn = (e.target as HTMLElement).closest('button'); if(!isBtn) setFlipped(v=>!v); }}>
@@ -33,15 +34,23 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
           <div className="w-full">
             <div className="flex items-center justify-between">
               <div className="text-white font-semibold smooth-font">{plan.name}</div>
-              {plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text-black pixel-font">POPULAR</span>}
+              {comingSoon ? (
+                <span className="text-[10px] px-2 py-1 rounded bg-white/15 text-white pixel-font">PRÓXIMAMENTE</span>
+              ) : (
+                plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text-black pixel-font">POPULAR</span>
+              )}
             </div>
             <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${price}<span className="text-base text-white/60">{suffix}</span></div>
             <ul className="mt-4 space-y-2 text-white/75 text-sm smooth-font">
               {plan.features.map(f=> <li key={f}>• {f}</li>)}
             </ul>
-            <div className="mt-6 flex gap-2">
-              <button className="px-4 py-2 rounded-md bg-gradient-to-b from-yellow-400 to-yellow-500 text-black font-semibold pixel-font" onClick={(e)=>{ e.stopPropagation(); onSubscribeAction(plan); }}>Subscribe</button>
-              <button className="px-4 py-2 rounded-md border border-white/20 text-white/90 hover:bg-white/5 transition pixel-font" onClick={(e)=>{ e.stopPropagation(); setFlipped(true); }}>Discover</button>
+            <div className="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-2 items-stretch w-full">
+              <button
+                className={`w-full px-4 py-2 rounded-md bg-gradient-to-b from-yellow-400 to-yellow-500 text-black font-semibold pixel-font text-xs ${comingSoon ? 'opacity-60 cursor-not-allowed' : ''}`}
+                disabled={comingSoon}
+                onClick={(e)=>{ e.stopPropagation(); if (!comingSoon) onSubscribeAction(plan); }}
+              >{comingSoon ? 'Próximamente' : 'Suscribirme'}</button>
+              <button className="w-full px-4 py-2 rounded-md border border-white/20 text-white/90 hover:bg-white/5 transition pixel-font text-xs" onClick={(e)=>{ e.stopPropagation(); setFlipped(true); }}>Descubrir</button>
             </div>
           </div>
         </div>
@@ -54,9 +63,13 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
             <div className="text-2xl mb-2" aria-hidden>🪄</div>
             <h3 className="secret-title text-xl font-bold smooth-font bg-clip-text text-transparent" style={{backgroundImage:'linear-gradient(45deg,#fff,var(--glow))'}}>Arcana {plan.name}</h3>
             <p className="text-white/85 mt-2 text-sm smooth-font">El círculo invoca perks ocultos y un aura de soporte aumentado. Haz clic para volver o suscríbete para sellar el pacto.</p>
-            <div className="mt-4 flex gap-2 justify-center">
-              <button className="px-4 py-2 rounded-md bg-gradient-to-b from-yellow-400 to-yellow-500 text-black font-semibold pixel-font" onClick={(e)=>{ e.stopPropagation(); onSubscribeAction(plan); }}>Subscribe</button>
-              <button className="px-4 py-2 rounded-md border border-white/20 text-white/90 hover:bg-white/5 transition pixel-font" onClick={(e)=>{ e.stopPropagation(); setFlipped(false); }}>Return</button>
+            <div className="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-2 items-stretch w-full max-w-sm mx-auto">
+              <button
+                className={`w-full px-4 py-2 rounded-md bg-gradient-to-b from-yellow-400 to-yellow-500 text-black font-semibold pixel-font text-xs ${comingSoon ? 'opacity-60 cursor-not-allowed' : ''}`}
+                disabled={comingSoon}
+                onClick={(e)=>{ e.stopPropagation(); if (!comingSoon) onSubscribeAction(plan); }}
+              >{comingSoon ? 'Próximamente' : 'Suscribirme'}</button>
+              <button className="w-full px-4 py-2 rounded-md border border-white/20 text-white/90 hover:bg-white/5 transition pixel-font text-xs" onClick={(e)=>{ e.stopPropagation(); setFlipped(false); }}>Volver</button>
             </div>
           </div>
         </div>

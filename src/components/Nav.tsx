@@ -4,7 +4,91 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { cls } from '@/lib/utils';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+function MagicToggleButton({ magicEnabled, onClick, className }: { magicEnabled: boolean; onClick: () => void; className?: string }) {
+  const [tease, setTease] = useState(false);
+  const [sparks, setSparks] = useState<Array<{ id: number; left: number; top: number; dx: number; dur: number; color: string; h: number }>>([]);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seed = useRef(Math.floor(Math.random() * 10000));
+
+  const colors = useMemo(() => ['#FACC15', '#7b00ff', '#60a5fa', '#f59e0b'], []);
+
+  const schedule = useRef<() => void>(() => {});
+  schedule.current = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const t = 4000 + Math.random() * 6000; // 4–10s
+    timerRef.current = setTimeout(() => {
+      if (!btnRef.current) return;
+      // nudge
+      setTease(true);
+      setTimeout(() => setTease(false), 1100);
+      // emit small pixel sparks
+      const rect = btnRef.current.getBoundingClientRect();
+      const count = 6 + Math.floor(Math.random() * 6);
+      const now = performance.now ? performance.now() : Date.now();
+      const batch: typeof sparks = [];
+      for (let i = 0; i < count; i++) {
+        const id = (seed.current + i) ^ Math.floor(now) ^ Math.floor(Math.random() * 100000);
+        const left = (rect.width / 2) + (Math.random() * rect.width * 0.35 - rect.width * 0.175);
+        const top = rect.height / 2 + (Math.random() * 6 - 3);
+        const dx = (Math.random() * 24 - 12);
+        const dur = 700 + Math.random() * 700;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const h = 24 + Math.random() * 26;
+        batch.push({ id, left, top, dx, dur, color, h });
+        // auto-remove spark later
+        setTimeout(() => {
+          setSparks((prev) => prev.filter((s) => s.id !== id));
+        }, dur + 80);
+      }
+      setSparks((prev) => [...prev, ...batch]);
+      // schedule next
+      schedule.current();
+    }, t);
+  };
+
+  useEffect(() => {
+    if (!magicEnabled) {
+      schedule.current();
+    } else if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [magicEnabled]);
+
+  return (
+    <button
+      ref={btnRef}
+      onClick={onClick}
+      className={cls(
+        'ml-2 text-xs sm:text-sm px-3 py-2 rounded-md border btn magic-toggle',
+        magicEnabled ? 'border-yellow-400/60 text-yellow-200 hover:bg-yellow-400/10' : 'border-white/20 text-white/80 hover:bg-white/5',
+        !magicEnabled ? 'is-off' : '',
+        tease ? 'tease' : '',
+        className || ''
+      )}
+      aria-pressed={magicEnabled}
+      aria-label={magicEnabled ? 'Disable magic' : 'Enable magic'}
+    >
+      {/* sparkle layer */}
+      {!magicEnabled && (
+        <span aria-hidden className="pointer-events-none absolute inset-0 overflow-visible">
+          {sparks.map((s) => (
+            <span
+              key={s.id}
+              className="magic-spark"
+              style={{ left: s.left, top: s.top, ['--dx' as any]: `${s.dx}px`, ['--dur' as any]: `${s.dur}ms`, ['--c' as any]: s.color, ['--h' as any]: `${s.h}px` }}
+            />
+          ))}
+        </span>
+      )}
+      {magicEnabled ? '✨ Magic: ON' : '⛔ Magic: OFF'}
+    </button>
+  );
+}
 
 export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMagicAction: () => void; magicEnabled: boolean }) {
   const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -29,15 +113,7 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
             <a href="#work" className="text-white/80 hover:text-white text-xs sm:text-sm smooth-font">Work</a>
             <a href="#pricing" className="text-white/80 hover:text-white text-xs sm:text-sm smooth-font">Pricing</a>
             <a href="#tech" className="text-white/80 hover:text-white text-xs sm:text-sm smooth-font">Tech</a>
-            <button
-              onClick={onToggleMagicAction}
-              className={cls(
-                'ml-2 text-xs sm:text-sm px-3 py-2 rounded-md border btn',
-                magicEnabled ? 'border-yellow-400/60 text-yellow-200 hover:bg-yellow-400/10' : 'border-white/20 text-white/80 hover:bg-white/5'
-              )}
-            >
-              {magicEnabled ? '✨ Magic: ON' : '⛔ Magic: OFF'}
-            </button>
+            <MagicToggleButton magicEnabled={magicEnabled} onClick={onToggleMagicAction} />
             {hasClerk ? (
               <>
                 <SignedOut>
@@ -92,18 +168,11 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
               <a href="#work" onClick={closeMenu} className="px-3 py-2 rounded-md hover:bg-white/5 text-white/90 text-sm">Work</a>
               <a href="#pricing" onClick={closeMenu} className="px-3 py-2 rounded-md hover:bg-white/5 text-white/90 text-sm">Pricing</a>
               <a href="#tech" onClick={closeMenu} className="px-3 py-2 rounded-md hover:bg-white/5 text-white/90 text-sm">Tech</a>
-              <button
-                onClick={() => {
-                  onToggleMagicAction();
-                  closeMenu();
-                }}
-                className={cls(
-                  'mt-1 text-sm px-3 py-2 rounded-md border text-left',
-                  magicEnabled ? 'border-yellow-400/60 text-yellow-200 hover:bg-yellow-400/10' : 'border-white/20 text-white/80 hover:bg-white/5'
-                )}
-              >
-                {magicEnabled ? '✨ Magic: ON' : '⛔ Magic: OFF'}
-              </button>
+              <MagicToggleButton
+                magicEnabled={magicEnabled}
+                onClick={() => { onToggleMagicAction(); closeMenu(); }}
+                className="mt-1 text-sm text-left"
+              />
               {hasClerk ? (
                 <>
                   <SignedOut>

@@ -7,12 +7,52 @@ export type Plan = {
   priceM: number;
   priceY: number;
   popular?: boolean;
+  comingSoon?: boolean;
   color: string;
 };
 
 export const PLANS: Plan[] = [
-  { id: 'apprentice', name: 'Apprentice', features: ['1 proyecto / mes','Soporte por email','Builds en Vercel'], priceM: 9, priceY: 90, color:'#ff00dd' },
-  { id: 'mage', name: 'Mage', features: ['3 proyectos / mes','Componentes premium','Soporte prioritario'], priceM: 29, priceY: 290, popular:true, color:'#00ffe1' },
-  { id: 'archmage', name: 'Archmage', features: ['Ilimitado','Integraciones a medida','Soporte 1:1'], priceM: 99, priceY: 990, color:'#ffae00' },
+  {
+    id: 'apprentice',
+    name: 'Apprentice',
+    features: [
+      'Acceso a Qubito (listo para usar)',
+      'Publicación y hosting incluidos',
+      'Tu enlace para compartir',
+      'Soporte por WhatsApp y email',
+    ],
+    priceM: 9,
+    priceY: 90,
+    popular: true,
+    color: '#ff00dd',
+  },
+  {
+    id: 'mage',
+    name: 'Mage',
+    features: [
+      'Más apps y plantillas',
+      'Personalización de marca',
+      'Formularios y analíticas simples',
+      'Soporte prioritario',
+    ],
+    priceM: 29,
+    priceY: 290,
+    comingSoon: true,
+    color: '#00ffe1',
+  },
+  {
+    id: 'archmage',
+    name: 'Archmage',
+    features: [
+      'Integraciones a medida',
+      'Acompañamiento 1:1',
+      'Marca blanca',
+      'SLA básico',
+    ],
+    priceM: 99,
+    priceY: 990,
+    comingSoon: true,
+    color: '#ffae00',
+  },
 ];
 

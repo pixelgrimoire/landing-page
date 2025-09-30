@@ -16,12 +16,14 @@ import Cloudfield from '@/components/Cloudfield';
 import SnesSceneTransition, { SnesSceneTransitionHandle } from '@/components/SnesSceneTransition';
 
 export default function PixelGrimoireLanding() {
-  const [magicEnabled, setMagicEnabled] = useState(true);
+  // Default: Magic OFF
+  const [magicEnabled, setMagicEnabled] = useState(false);
   const transitionRef = useRef<SnesSceneTransitionHandle | null>(null);
   // Persist toggle across visits (on mount)
   useEffect(() => {
     try {
       const saved = localStorage.getItem('pg_magic');
+      if (saved === 'on') setMagicEnabled(true);
       if (saved === 'off') setMagicEnabled(false);
     } catch {}
   }, []);
