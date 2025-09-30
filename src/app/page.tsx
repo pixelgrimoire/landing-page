@@ -55,8 +55,8 @@ export default function PixelGrimoireLanding() {
 
       <main className="pt-24 relative z-10">
         <Hero magicEnabled={magicEnabled} />
-        {/* Cloudfield entre Hero y Features */}
-        <div className={`relative w-full h-[28vh] sm:h-[32vh] md:h-[38vh] lg:h-[42vh] xl:h-[48vh] -mt-100 -mb-30 z-0 pointer-events-none overflow-hidden transition-opacity duration-500 ${magicEnabled ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Cloudfield entre Hero y Features (oculto en móvil para evitar solapes) */}
+        <div className={`relative hidden sm:block w-full h-[18vh] md:h-[28vh] lg:h-[36vh] xl:h-[42vh] -mt-[20px] md:-mt-[28px] lg:-mt-[36px] -mb-[12px] md:-mb-[18px] z-0 pointer-events-none overflow-hidden transition-opacity duration-500 ${magicEnabled ? 'opacity-100' : 'opacity-0'}`}>
           <Cloudfield enabled={magicEnabled} />
         </div>
         <Features />

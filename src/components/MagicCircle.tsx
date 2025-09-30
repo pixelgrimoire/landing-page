@@ -52,6 +52,10 @@ export default function MagicCircle({ enabled = true }: { enabled?: boolean }) {
   }, [enabled]);
 
   return (
-    <div ref={hostRef} className="absolute left-1/2 -translate-x-1/2 bottom-3 w-[420px] h-[420px] sm:w-[520px] sm:h-[520px] pointer-events-none mix-blend-screen opacity-90 float-slower" aria-hidden/>
+    <div
+      ref={hostRef}
+      className="absolute left-1/2 -translate-x-1/2 bottom-3 w-[300px] h-[300px] sm:w-[420px] sm:h-[420px] md:w-[520px] md:h-[520px] pointer-events-none mix-blend-screen opacity-90 float-slower"
+      aria-hidden
+    />
   );
 }

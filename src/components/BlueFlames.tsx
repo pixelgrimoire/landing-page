@@ -152,7 +152,11 @@ export default function BlueFlames({ enabled = true }: { enabled?: boolean }) {
   }, [enabled, particleData]);
 
   return (
-      <div ref={hostRef} className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[420px] max-h-[350px] pointer-events-none z-20" aria-hidden>
+      <div
+        ref={hostRef}
+        className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[300px] max-h-[260px] sm:max-w-[420px] sm:max-h-[350px] pointer-events-none z-20"
+        aria-hidden
+      >
         <canvas ref={canvasRef} className="w-full h-full opacity-90" />
       </div>
   );
