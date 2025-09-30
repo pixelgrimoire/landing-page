@@ -16,7 +16,7 @@ export const PLANS: Plan[] = [
     id: 'apprentice',
     name: 'Apprentice',
     features: [
-      'Acceso a Qubito (listo para usar)',
+      'Acceso a un proyecto',
       'Publicación y hosting incluidos',
       'Tu enlace para compartir',
       'Soporte por WhatsApp y email',

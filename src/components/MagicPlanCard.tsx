@@ -40,7 +40,7 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
                 plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text-black pixel-font">POPULAR</span>
               )}
             </div>
-            <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${price}<span className="text-base text-white/60">{suffix}</span></div>
+            <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${price}<span className="text-base text-white/60"> USD{suffix}</span></div>
             <ul className="mt-4 space-y-2 text-white/75 text-sm smooth-font">
               {plan.features.map(f=> <li key={f}>• {f}</li>)}
             </ul>
