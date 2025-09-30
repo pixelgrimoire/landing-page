@@ -10,7 +10,7 @@ export async function requireEntitlement(code: string) {
   if (!user?.stripeCustomerId) {
     throw Object.assign(new Error('Forbidden: no subscription linked'), { status: 403 });
   }
-  const entitlements = await prisma.entitlement.findMany({ where: { customerId: user.stripeCustomerId, status: { not: 'inactive' } } });
+  const entitlements = await prisma.entitlement.findMany({ where: { customerId: user.stripeCustomerId, status: { in: ['active','trialing','past_due'] } } });
   const has = entitlements.some(e => e.code === code);
   if (!has) {
     throw Object.assign(new Error('Forbidden: missing entitlement'), { status: 403 });

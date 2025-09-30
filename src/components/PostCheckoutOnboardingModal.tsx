@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { SignedOut, SignIn, SignUp, useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { SignIn, SignUp, useUser } from '@clerk/nextjs';
+import { clerkAppearance } from '@/lib/clerkAppearance';
 
 type Props = {
   open: boolean;
@@ -17,13 +19,17 @@ const PROJECTS = [
 ];
 
 export default function PostCheckoutOnboardingModal({ open, customerId, onClose }: Props) {
+  const router = useRouter();
   const { isSignedIn } = useUser();
   const [step, setStep] = useState<'auth' | 'link' | 'projects' | 'done'>('auth');
+  const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup');
   const [linking, setLinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [cid, setCid] = useState<string | null>(customerId || null);
   const canProceed = useMemo(() => entitlements.length > 0 && entitlements.every(code => !!choices[code]), [entitlements, choices]);
 
   useEffect(() => {
@@ -32,6 +38,22 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, [open]);
+
+  // Avoid hydration mismatch with Clerk widgets
+  useEffect(() => { setMounted(true); }, []);
+
+  // Persist and recover customerId across auth redirects
+  useEffect(() => {
+    try {
+      if (customerId) {
+        setCid(customerId);
+        localStorage.setItem('pg_checkout_cid', customerId);
+      } else if (!cid) {
+        const stored = localStorage.getItem('pg_checkout_cid');
+        if (stored) setCid(stored);
+      }
+    } catch {}
+  }, [customerId, cid]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,14 +66,32 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
     (async () => {
       if (!open) return;
       if (step !== 'link') return;
-      if (!customerId) { setError('Falta customerId para vincular'); return; }
+      setError(null);
+      let effectiveCid = cid;
+      if (!effectiveCid) {
+        try {
+          const res = await fetch('/api/ensure-customer', { method: 'POST' });
+          const data = await res.json();
+          if (res.ok && data?.stripeCustomerId) {
+            effectiveCid = String(data.stripeCustomerId);
+            setCid(effectiveCid);
+            try { localStorage.setItem('pg_checkout_cid', effectiveCid); } catch {}
+          } else {
+            setError(data?.error || 'Falta customerId para vincular');
+            return;
+          }
+        } catch (e: unknown) {
+          setError(e instanceof Error ? e.message : 'Falta customerId para vincular');
+          return;
+        }
+      }
       setLinking(true); setError(null);
       try {
-        const res = await fetch('/api/link-customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId }) });
+        const res = await fetch('/api/link-customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: effectiveCid }) });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || 'No se pudo vincular la suscripción');
         // Load entitlements to ask for project selection
-        const r2 = await fetch(`/api/entitlements?customerId=${encodeURIComponent(customerId)}`);
+        const r2 = await fetch(`/api/entitlements?customerId=${encodeURIComponent(effectiveCid)}`);
         const d2 = await r2.json();
         if (r2.ok && Array.isArray(d2?.entitlements)) {
           setEntitlements(d2.entitlements as string[]);
@@ -65,7 +105,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
         setLinking(false);
       }
     })();
-  }, [open, step, customerId]);
+  }, [open, step, cid]);
 
   const saveProjects = async () => {
     setSaving(true); setError(null);
@@ -83,6 +123,14 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
     } finally { setSaving(false); }
   };
 
+  // Redirect to home once finished
+  useEffect(() => {
+    if (step === 'done') {
+      const t = setTimeout(() => { router.push('/'); }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [step, router]);
+
   if (!open) return null;
 
   return (
@@ -92,19 +140,26 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
         <div className="relative w-full max-w-2xl rounded-xl border border-white/10 bg-white/[.03] shadow-2xl backdrop-blur-md">
           <button aria-label="Cerrar" onClick={onClose} className="absolute top-2 right-2 text-white/60 hover:text-white px-2 py-1">✕</button>
           <div className="p-5">
-            {step === 'auth' && (
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white/5 border border-white/10 rounded p-3">
-                  <h3 className="font-semibold mb-2">Crear cuenta</h3>
-                  <SignedOut>
-                    <SignUp routing="hash" signInUrl="/sign-in" />
-                  </SignedOut>
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded p-3">
-                  <h3 className="font-semibold mb-2">Iniciar sesión</h3>
-                  <SignedOut>
-                    <SignIn routing="hash" signUpUrl="/sign-up" />
-                  </SignedOut>
+            {step === 'auth' && mounted && (
+              <div className="grid place-items-center">
+                <div className="w-full max-w-md">
+                  {authMode === 'signup' ? (
+                    <>
+                      <h3 className="font-semibold mb-2">Crear cuenta</h3>
+                      <SignUp routing="hash" signInUrl="#/sign-in" appearance={clerkAppearance} afterSignUpUrl="/subscribe/success" />
+                      <div className="text-xs text-white/60 mt-2 text-center">
+                        ¿Ya tienes cuenta? <button onClick={()=>setAuthMode('signin')} className="underline hover:text-white">Inicia sesión</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="font-semibold mb-2">Iniciar sesión</h3>
+                      <SignIn routing="hash" signUpUrl="#/sign-up" appearance={clerkAppearance} afterSignInUrl="/subscribe/success" />
+                      <div className="text-xs text-white/60 mt-2 text-center">
+                        ¿Nuevo aquí? <button onClick={()=>setAuthMode('signup')} className="underline hover:text-white">Crear cuenta</button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -142,7 +197,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
                 )}
                 <div className="mt-4 flex gap-2">
                   <button onClick={saveProjects} disabled={saving || (entitlements.length>0 && !canProceed)} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold disabled:opacity-60">{saving ? 'Guardando…' : 'Guardar y continuar'}</button>
-                  <button onClick={onClose} className="px-4 py-2 rounded border border-white/10 bg-white/5 text-white/80">Hacerlo después</button>
+                  <button onClick={() => router.push('/')} className="px-4 py-2 rounded border border-white/10 bg-white/5 text-white/80">Hacerlo después</button>
                 </div>
               </div>
             )}
@@ -151,7 +206,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
               <div className="text-white/80">
                 <div className="font-semibold mb-2">¡Todo listo!</div>
                 <p className="text-white/70 mb-4">Tu suscripción quedó vinculada y los proyectos seleccionados. Puedes cerrar este diálogo.</p>
-                <button onClick={onClose} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold">Cerrar</button>
+                <button onClick={() => router.push('/')} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold">Cerrar</button>
               </div>
             )}
           </div>

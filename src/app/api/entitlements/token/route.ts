@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findFirst({ where: { clerkUserId: userId } });
     if (!user?.stripeCustomerId) return new Response(JSON.stringify({ error: 'No Stripe customer linked' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
-    const activeEnts = await prisma.entitlement.findMany({ where: { customerId: user.stripeCustomerId, status: { not: 'inactive' } } });
+    const activeEnts = await prisma.entitlement.findMany({ where: { customerId: user.stripeCustomerId, status: { in: ['active','trialing','past_due'] } } });
     const entitlements = activeEnts.map(e => e.code);
 
     // If audience is requested, ensure it matches the user's current selection for that entitlement

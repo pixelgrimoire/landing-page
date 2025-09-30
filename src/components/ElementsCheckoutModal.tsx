@@ -286,8 +286,27 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
         {!error && (
           <div className="relative min-h-[560px]">
             {!clientSecret || !stripePromise || !intentType ? (
-              <div className="absolute inset-0 grid place-items-center text-white/60">
-                <div className="animate-pulse">Cargando…</div>
+              <div className="absolute inset-0 grid place-items-center text-white/80 p-4">
+                {!isSignedIn && !isValidEmail(email) ? (
+                  <div className="w-full max-w-sm bg-white/5 border border-white/10 rounded-lg p-4">
+                    <div className="text-sm mb-2">Ingresa tu correo para continuar</div>
+                    <input
+                      value={email || ''}
+                      onChange={(e)=> setEmail(e.target.value)}
+                      placeholder="tu@email.com"
+                      className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm mb-2"
+                      inputMode="email"
+                    />
+                    <button
+                      onClick={()=>{ if (isValidEmail(email)) { try { localStorage.setItem('pg_email', email!); } catch {} setEmailComplete(true); } }}
+                      disabled={!isValidEmail(email)}
+                      className="w-full px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60"
+                    >Continuar</button>
+                    <div className="text-[11px] text-white/50 mt-2">Usamos tu correo para el recibo y crear tu cuenta.</div>
+                  </div>
+                ) : (
+                  <div className="text-white/60 animate-pulse">Cargando…</div>
+                )}
               </div>
             ) : (
               <Elements options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>

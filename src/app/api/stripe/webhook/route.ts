@@ -160,12 +160,17 @@ export async function POST(req: NextRequest) {
           await prisma.subscriptionItem.delete({ where: { stripeItemId: leftover.stripeItemId } });
         }
 
-        await upsertUserEntitlements({
-          stripeCustomerId: customerId,
-          entitlements,
-          status: sub.status,
-          currentPeriodEnd: currentPeriodEndSec ?? undefined,
-        });
+        // Solo actualiza entitlements cuando la suscripción es utilizable
+        // Evita otorgar permisos en estados "incomplete" o similares
+        const grantableStatuses: Stripe.Subscription.Status[] = ['active', 'trialing', 'past_due'];
+        if (grantableStatuses.includes(sub.status)) {
+          await upsertUserEntitlements({
+            stripeCustomerId: customerId,
+            entitlements,
+            status: sub.status,
+            currentPeriodEnd: currentPeriodEndSec ?? undefined,
+          });
+        }
         break;
       }
 

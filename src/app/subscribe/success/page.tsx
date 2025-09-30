@@ -17,6 +17,12 @@ function SuccessInner() {
   const sp = useSearchParams();
   const [open, setOpen] = useState(true);
   const customerId = sp.get('customer_id');
+  // Persist customer_id across Clerk redirects
+  useEffect(() => {
+    try {
+      if (customerId) localStorage.setItem('pg_checkout_cid', customerId);
+    } catch {}
+  }, [customerId]);
 
   useEffect(() => { setOpen(true); }, []);
 
