@@ -117,6 +117,7 @@ function ElementsInner() {
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
   const [addrKey, setAddrKey] = useState(0);
+  const nameFromUser = useMemo(() => (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined), [user?.fullName, user?.firstName, user?.lastName]);
 
   // Normalize address so line1 is always present
   const normalizeAddress = (a?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | null) => {
@@ -161,10 +162,8 @@ function ElementsInner() {
           email: undefined,
           promotionCode: opts?.promo || undefined,
           customerDetails: billingAddress
-            ? { address: billingAddress, email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
-            : ((email || (user?.fullName || user?.firstName || user?.lastName))
-                ? { email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
-                : undefined),
+            ? { address: billingAddress, email, name: nameFromUser }
+            : ((email || nameFromUser) ? { email, name: nameFromUser } : undefined),
         })
       });
       const data = await res.json();
@@ -199,7 +198,7 @@ function ElementsInner() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     }
-  }, [stripePromise, searchParams, isSignedIn, email, promotionCode, customerId, priceId, billingAddress]);
+  }, [stripePromise, searchParams, isSignedIn, email, promotionCode, customerId, priceId, billingAddress, nameFromUser]);
 
   useEffect(() => {
     (async () => {
@@ -341,7 +340,7 @@ function ElementsInner() {
                             }}
                           />
                         </div>
-                        <CheckoutForm intentType={intentType} email={email} name={(user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined)} address={billingAddress as any} />
+                        <CheckoutForm intentType={intentType} email={email} name={nameFromUser} address={billingAddress} />
                       </div>
                       <div className="md:col-span-2 space-y-3">
                         <div className="pixel-border rounded-lg p-4">

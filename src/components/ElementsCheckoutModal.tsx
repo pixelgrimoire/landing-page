@@ -158,10 +158,8 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
           email: !isSignedIn ? (email || undefined) : undefined,
           promotionCode: opts?.promo || undefined,
           customerDetails: billingAddress
-            ? { address: billingAddress, email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
-            : ((email || (user?.fullName || user?.firstName || user?.lastName))
-                ? { email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
-                : undefined),
+            ? { address: billingAddress, email, name: nameFromUser }
+            : ((email || nameFromUser) ? { email, name: nameFromUser } : undefined),
         })
       });
       const data = await res.json();
@@ -194,7 +192,7 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     }
-  }, [stripePromise, planId, cycle, isSignedIn, email, promotionCode, customerId, priceId, billingAddress]);
+  }, [stripePromise, planId, cycle, isSignedIn, email, promotionCode, customerId, priceId, billingAddress, nameFromUser]);
 
   // Create a session once signed-in
   useEffect(() => {
@@ -339,7 +337,7 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
                     <CheckoutForm intentType={intentType} customerId={customerId} subscriptionId={subscriptionId} email={email} name={(user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined)}
                       // pass normalized address to billing_details at confirm
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      address={normalizeAddress(billingAddress) as any}
+                      address={normalizeAddress(billingAddress)}
                     />
                   </div>
                   {/* Middle: Customer details (email + address) */}
