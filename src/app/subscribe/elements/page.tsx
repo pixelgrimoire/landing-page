@@ -198,7 +198,7 @@ function ElementsInner() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     }
-  }, [stripePromise, searchParams, isSignedIn, email, promotionCode, customerId, priceId, billingAddress, nameFromUser]);
+  }, [stripePromise, searchParams, email, promotionCode, customerId, priceId, billingAddress, nameFromUser]);
 
   useEffect(() => {
     (async () => {

@@ -336,7 +336,6 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
                     </div>
                     <CheckoutForm intentType={intentType} customerId={customerId} subscriptionId={subscriptionId} email={email} name={(user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined)}
                       // pass normalized address to billing_details at confirm
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       address={normalizeAddress(billingAddress)}
                     />
                   </div>

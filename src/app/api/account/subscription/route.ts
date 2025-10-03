@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest) {
     if (!user?.stripeCustomerId) return new Response(JSON.stringify({ error: 'No Stripe customer linked' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     const customerId = user.stripeCustomerId;
 
-    let sub = await prisma.subscription.findFirst({
+    const sub = await prisma.subscription.findFirst({
       where: { customerId, status: { in: ['active', 'trialing', 'past_due'] } },
       orderBy: { createdAt: 'desc' },
     });
@@ -42,6 +42,7 @@ export async function GET(_req: NextRequest) {
     let planId: string | null = null;
     let planLabel: string | null = null;
     let interval: 'month' | 'year' | null = null;
+    let subData: { status: string; cancelAtPeriodEnd: boolean; currentPeriodEnd: Date | null } | null = null;
 
     if (sub) {
       const item = await prisma.subscriptionItem.findFirst({ where: { subscriptionId: sub.id }, orderBy: { id: 'asc' } });
@@ -62,6 +63,7 @@ export async function GET(_req: NextRequest) {
           }
         }
       } catch {}
+      subData = { status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null };
     } else {
       // Fallback: read directly from Stripe if DB isn't synced yet
       try {
@@ -78,18 +80,12 @@ export async function GET(_req: NextRequest) {
             planId = planLower;
             planLabel = planLower ? (PLANS.find(p => p.id === planLower)?.name || planLower) : null;
             interval = (prefer.items.data[0]?.price?.recurring?.interval || null) as 'month'|'year'|null;
-
-            // Compose a transient subscription object for response
-            sub = {
-              id: 'transient',
-              stripeId: prefer.id,
-              customerId,
+            const cpe = (prefer as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+            subData = {
               status: prefer.status,
-              currentPeriodEnd: (prefer as any).current_period_end ? new Date((prefer as any).current_period_end * 1000) : null,
               cancelAtPeriodEnd: !!prefer.cancel_at_period_end,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            } as unknown as typeof sub;
+              currentPeriodEnd: cpe ? new Date(cpe * 1000) : null,
+            };
           }
         }
       } catch {
@@ -98,10 +94,10 @@ export async function GET(_req: NextRequest) {
     }
 
     return new Response(JSON.stringify({
-      subscription: sub ? {
-        status: sub.status,
-        cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
-        currentPeriodEnd: sub.currentPeriodEnd?.toISOString() || null,
+      subscription: subData ? {
+        status: subData.status,
+        cancelAtPeriodEnd: subData.cancelAtPeriodEnd,
+        currentPeriodEnd: subData.currentPeriodEnd?.toISOString() || null,
         planId,
         planLabel,
         interval,
