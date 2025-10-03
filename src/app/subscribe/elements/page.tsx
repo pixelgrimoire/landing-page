@@ -369,10 +369,18 @@ function ElementsInner() {
                           <div className="text-xs text-white/70 mb-1">Código de promoción</div>
                           <div className="flex gap-2">
                             <input value={promotionCode} onChange={(e)=>{ const v = e.target.value; setPromotionCode(v); if (promoError) setPromoError(null); }} placeholder="PROMO" className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-2 text-sm" />
-                            <button disabled={applying || !promotionCode || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))} onClick={async()=>{ setApplying(true); try { await createSession({ promo: promotionCode }); } finally { setApplying(false); } }} className="px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60">{applying ? 'Aplicando…' : 'Aplicar'}</button>
+                            <button
+                              disabled={applying || !promotionCode || !!clientSecret || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))}
+                              onClick={async()=>{
+                                if (clientSecret) { setPromoError('Para cambiar el cupón cierra y vuelve a abrir el checkout.'); return; }
+                                setApplying(true);
+                                try { await createSession({ promo: promotionCode }); } finally { setApplying(false); }
+                              }}
+                              className="px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60"
+                            >{applying ? 'Aplicando…' : 'Aplicar'}</button>
                           </div>
                           {promoError && (<div className="text-[11px] text-red-300 mt-1">{promoError}</div>)}
-                          <div className="text-[11px] text-white/50 mt-1">Si el código es válido, el total se actualizará al confirmar.</div>
+                          <div className="text-[11px] text-white/50 mt-1">Cupón aplicable al crear la sesión. Para cambiarlo, reinicia este paso.</div>
                         </div>
                         <div className="text-[11px] text-white/50">
                           Al suscribirte autorizas cargos recurrentes según el plan seleccionado. Consulta nuestras <a className="underline hover:text-white" href="/terms" target="_blank">Condiciones</a> y <a className="underline hover:text-white" href="/privacy" target="_blank">Privacidad</a>.

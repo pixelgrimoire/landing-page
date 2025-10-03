@@ -398,10 +398,18 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
                       <div className="text-xs text-white/70 mb-1">Código de promoción</div>
                       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-stretch gap-2 min-w-0">
                         <input value={promotionCode} onChange={(e)=>{ const v = e.target.value; setPromotionCode(v); if (promoError) setPromoError(null); }} placeholder="PROMO" className="min-w-0 w-full bg-white/5 border border-white/10 rounded px-2 py-2 text-sm" />
-                        <button disabled={applying || !promotionCode || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))} onClick={async()=>{ setApplying(true); try { await createSession({ promo: promotionCode }); } finally { setApplying(false); } }} className="w-full sm:w-auto shrink-0 px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60">{applying ? 'Aplicando…' : 'Aplicar'}</button>
+                        <button
+                          disabled={applying || !promotionCode || !!clientSecret || (!!promoError && normalizePromo(promotionCode) === normalizePromo(lastInvalidPromo))}
+                          onClick={async()=>{
+                            if (clientSecret) { setPromoError('Para cambiar el cupón cierra y vuelve a abrir el checkout.'); return; }
+                            setApplying(true);
+                            try { await createSession({ promo: promotionCode }); } finally { setApplying(false); }
+                          }}
+                          className="w-full sm:w-auto shrink-0 px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60"
+                        >{applying ? 'Aplicando…' : 'Aplicar'}</button>
                       </div>
                       {promoError && (<div className="text-[11px] text-red-300 mt-1">{promoError}</div>)}
-                      <div className="text-[11px] text-white/50 mt-1">Si el código es válido, el total se actualizará al confirmar.</div>
+                      <div className="text-[11px] text-white/50 mt-1">Cupón aplicable al crear la sesión. Para cambiarlo, reinicia este paso.</div>
                     </div>
                     <div className="text-[11px] text-white/50">
                       Al suscribirte autorizas cargos recurrentes según el plan seleccionado. Consulta nuestras <a className="underline hover:text-white" href="/terms" target="_blank" rel="noreferrer">Condiciones</a> y <a className="underline hover:text-white" href="/privacy" target="_blank" rel="noreferrer">Privacidad</a>.
