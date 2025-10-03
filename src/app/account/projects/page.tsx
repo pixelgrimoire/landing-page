@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { PROJECTS } from '@/lib/constants';
 
 type Selection = {
   id: string;
@@ -10,13 +11,6 @@ type Selection = {
   pendingProject: string | null;
   pendingEffectiveAt: string | null;
 };
-
-const PROJECTS = [
-  { slug: 'qubito', label: 'Qubito' },
-  { slug: 'nexia', label: 'Nexia' },
-  { slug: 'nexora', label: 'Nexora' },
-  { slug: 'soja', label: 'Soja' },
-];
 
 // Assumption: Apprentice => entitlementCode 'pos.basic'. Adjust if different in your env vars.
 const DEFAULT_ENTITLEMENT = 'pos.basic';

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { cls } from '@/lib/utils';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import SubscriptionManager from '@/components/SubscriptionManager';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 function MagicToggleButton({ magicEnabled, onClick, className }: { magicEnabled: boolean; onClick: () => void; className?: string }) {
@@ -124,7 +125,17 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
                   </SignInButton>
                 </SignedOut>
                 <SignedIn>
-                  <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-7 h-7' } }} afterSignOutUrl="/" />
+                  <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-7 h-7' } }} afterSignOutUrl="/">
+                    {/* Fallback/custom modal pages if running in modal mode */}
+                    <UserButton.UserProfilePage label="Suscripción" url="subscription" labelIcon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>}>
+                      <div className="p-3 min-w-[280px]">
+                        <SubscriptionManager />
+                      </div>
+                    </UserButton.UserProfilePage>
+                    {/* Reorder defaults explicitly if needed */}
+                    <UserButton.UserProfilePage label="account" />
+                    <UserButton.UserProfilePage label="security" />
+                  </UserButton>
                 </SignedIn>
               </>
             ) : (
@@ -184,7 +195,15 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
                   </SignedOut>
                   <SignedIn>
                     <div className="mt-1 px-1">
-                      <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-7 h-7' } }} afterSignOutUrl="/" />
+                      <UserButton appearance={{ elements: { userButtonAvatarBox: 'w-7 h-7' } }} afterSignOutUrl="/">
+                        <UserButton.UserProfilePage label="Suscripción" url="subscription" labelIcon={<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>}>
+                          <div className="p-3 min-w-[280px]">
+                            <SubscriptionManager />
+                          </div>
+                        </UserButton.UserProfilePage>
+                        <UserButton.UserProfilePage label="account" />
+                        <UserButton.UserProfilePage label="security" />
+                      </UserButton>
                     </div>
                   </SignedIn>
                 </>

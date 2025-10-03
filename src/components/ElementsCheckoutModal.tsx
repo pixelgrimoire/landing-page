@@ -1,8 +1,8 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement, AddressElement } from '@stripe/react-stripe-js';
-import type { StripeAddressElementChangeEvent, StripeLinkAuthenticationElementChangeEvent } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe, AddressElement } from '@stripe/react-stripe-js';
+import type { StripeAddressElementChangeEvent } from '@stripe/stripe-js';
 import { loadStripe, type Appearance } from '@stripe/stripe-js';
 import { useUser } from '@clerk/nextjs';
 
@@ -11,10 +11,9 @@ type Props = {
   onClose: () => void;
   planId: string;
   cycle: 'monthly' | 'yearly';
-  email?: string;
 };
 
-function CheckoutForm({ intentType, customerId, subscriptionId }: { intentType: 'payment' | 'setup'; customerId?: string | null; subscriptionId?: string | null }) {
+function CheckoutForm({ intentType, customerId, subscriptionId, email, name, address }: { intentType: 'payment' | 'setup'; customerId?: string | null; subscriptionId?: string | null; email?: string; name?: string; address?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -31,15 +30,26 @@ function CheckoutForm({ intentType, customerId, subscriptionId }: { intentType: 
     if (customerId) params.set('customer_id', customerId);
     if (subscriptionId) params.set('subscription_id', subscriptionId);
     const returnUrl = `${window.location.origin}/subscribe/success?${params.toString()}`;
+    const billing: Record<string, unknown> = {};
+    if (email) billing.email = email;
+    if (name) billing.name = name;
+    if (address) billing.address = address;
+
     if (intentType === 'setup') {
       ({ error } = await stripe.confirmSetup({
         elements,
-        confirmParams: { return_url: returnUrl },
+        confirmParams: {
+          return_url: returnUrl,
+          payment_method_data: Object.keys(billing).length ? { billing_details: billing } : undefined,
+        },
       }));
     } else {
       ({ error } = await stripe.confirmPayment({
         elements,
-        confirmParams: { return_url: returnUrl },
+        confirmParams: {
+          return_url: returnUrl,
+          payment_method_data: Object.keys(billing).length ? { billing_details: billing } : undefined,
+        },
       }));
     }
     if (error) setErrMsg(error.message || 'No se pudo confirmar el pago');
@@ -58,7 +68,7 @@ function CheckoutForm({ intentType, customerId, subscriptionId }: { intentType: 
   );
 }
 
-function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle: 'monthly'|'yearly'; initialEmail?: string; onClose: () => void }) {
+function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'yearly'; onClose: () => void }) {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const stripePromise = useMemo(() => (publishableKey ? loadStripe(publishableKey) : null), [publishableKey]);
   const { user, isSignedIn } = useUser();
@@ -78,13 +88,13 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | undefined>(initialEmail);
-  const [emailComplete, setEmailComplete] = useState<boolean>(!!(initialEmail && /.+@.+\..+/.test(initialEmail)));
+  const [email, setEmail] = useState<string | undefined>(undefined);
   const [totals, setTotals] = useState<{ subtotal?: number; tax?: number; total?: number; discount?: number; currency?: string; lineDescription?: string } | null>(null);
   const [planIdLabel, setPlanIdLabel] = useState('');
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
-  const [emailTouched, setEmailTouched] = useState(false);
+  const [addrKey, setAddrKey] = useState(0);
+  
 
   // Detect global magic toggle to adapt Stripe appearance (serious mode)
   useEffect(() => {
@@ -119,13 +129,25 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   const toTitle = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s);
   const normalizePromo = (s?: string | null) => (s ? s.trim().toUpperCase() : '');
 
-  const isValidEmail = (s?: string) => !!(s && /.+@.+\..+/.test(s));
+  // Ensure line1 is populated. Some autocompletes may place the entire street into line2.
+  const normalizeAddress = (a?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | null) => {
+    if (!a) return undefined;
+    const line1 = (a.line1 || '').trim();
+    const line2 = (a.line2 || '').trim();
+    if (!line1 && line2) {
+      return { ...a, line1: line2, line2: undefined };
+    }
+    return a;
+  };
+
+  const nameFromUser = useMemo(() => (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined), [user?.fullName, user?.firstName, user?.lastName]);
+
   const createSession = useCallback(async (opts?: { promo?: string }) => {
     if (!stripePromise) { setError('Stripe publishable key missing'); return; }
     setPlanIdLabel(toTitle(planId));
     setBillingCycleLabel(cycle === 'yearly' ? 'Anual' : 'Mensual');
-    if (!isSignedIn && !isValidEmail(email)) {
-      return; // evita llamadas hasta tener email válido
+    if (!isSignedIn) {
+      return;
     }
     try {
       const res = await fetch('/api/subscribe/elements', {
@@ -135,7 +157,11 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
           billingCycle: cycle,
           email: !isSignedIn ? (email || undefined) : undefined,
           promotionCode: opts?.promo || undefined,
-          customerDetails: billingAddress ? { address: billingAddress, email } : (email ? { email } : undefined),
+          customerDetails: billingAddress
+            ? { address: billingAddress, email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
+            : ((email || (user?.fullName || user?.firstName || user?.lastName))
+                ? { email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
+                : undefined),
         })
       });
       const data = await res.json();
@@ -170,17 +196,23 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
     }
   }, [stripePromise, planId, cycle, isSignedIn, email, promotionCode, customerId, priceId, billingAddress]);
 
-  // Debounced single source of truth to create a session
+  // Create a session once signed-in
   useEffect(() => {
     if (!stripePromise) return;
     if (clientSecret) return;
-    if (!(isSignedIn || (email && emailComplete))) return;
+    if (!isSignedIn) return;
     const t = setTimeout(async () => {
       setLoading(true);
       try { await createSession(); } finally { setLoading(false); }
-    }, 350);
+    }, 200);
     return () => clearTimeout(t);
-  }, [stripePromise, isSignedIn, email, emailComplete, clientSecret, createSession]);
+  }, [stripePromise, isSignedIn, clientSecret, createSession]);
+
+  // Sync email from Clerk user
+  useEffect(() => {
+    const u = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress;
+    if (u && u !== email) setEmail(u);
+  }, [user, email]);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -287,29 +319,10 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
           <div className="relative min-h-[560px]">
             {!clientSecret || !stripePromise || !intentType ? (
               <div className="absolute inset-0 grid place-items-center text-white/80 p-4">
-                {!isSignedIn && !isValidEmail(email) ? (
-                  <div className="w-full max-w-sm bg-white/5 border border-white/10 rounded-lg p-4">
-                    <div className="text-sm mb-2">Ingresa tu correo para continuar</div>
-                    <input
-                      value={email || ''}
-                      onChange={(e)=> setEmail(e.target.value)}
-                      placeholder="tu@email.com"
-                      className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm mb-2"
-                      inputMode="email"
-                    />
-                    <button
-                      onClick={()=>{ if (isValidEmail(email)) { try { localStorage.setItem('pg_email', email!); } catch {} setEmailComplete(true); } }}
-                      disabled={!isValidEmail(email)}
-                      className="w-full px-3 py-2 rounded bg-yellow-400 text-black text-sm disabled:opacity-60"
-                    >Continuar</button>
-                    <div className="text-[11px] text-white/50 mt-2">Usamos tu correo para el recibo y crear tu cuenta.</div>
-                  </div>
-                ) : (
-                  <div className="text-white/60 animate-pulse">Cargando…</div>
-                )}
+                <div className="text-white/60 animate-pulse">Preparando…</div>
               </div>
             ) : (
-              <Elements options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>
+              <Elements key={clientSecret || 'cs'} options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Left: Payment element + submit */}
                   <div className="md:col-span-6 space-y-4 min-w-0">
@@ -318,38 +331,44 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
                         key={layoutType}
                         options={{
                           layout: { type: layoutType, defaultCollapsed: layoutType === 'accordion' },
-                          fields: { billingDetails: { name: 'auto', email: 'never', address: 'auto' } },
+                          // We collect address via AddressElement below; avoid duplication here
+                          fields: { billingDetails: { name: 'auto', email: 'never', address: 'never' } },
                         }}
                       />
                     </div>
-                    <CheckoutForm intentType={intentType} customerId={customerId} subscriptionId={subscriptionId} />
+                    <CheckoutForm intentType={intentType} customerId={customerId} subscriptionId={subscriptionId} email={email} name={(user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined)}
+                      // pass normalized address to billing_details at confirm
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      address={normalizeAddress(billingAddress) as any}
+                    />
                   </div>
                   {/* Middle: Customer details (email + address) */}
                   <div className="md:col-span-3 space-y-4 min-w-0">
                     <div className="pixel-border rounded-lg p-3">
                       <div className="mb-2 text-white/80 text-xs">Correo electrónico</div>
-                      {isSignedIn ? (
-                        <div className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/80 text-sm select-none cursor-not-allowed">
-                          {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '—'}
-                        </div>
-                      ) : (
-                        <>
-                          <LinkAuthenticationElement
-                            options={ email && emailComplete ? { defaultValues: { email } } : undefined }
-                            onChange={(e: StripeLinkAuthenticationElementChangeEvent)=> { setEmailTouched(true); setEmail(e.value?.email || undefined); setEmailComplete(!!e.complete); }}
-                          />
-                          {!isSignedIn && emailTouched && !emailComplete && (
-                            <div className="mt-1 text-[11px] text-red-300">Ingresa un correo válido</div>
-                          )}
-                        </>
-                      )}
+                      <div className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/80 text-sm select-none cursor-not-allowed">
+                        {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || email || '—'}
+                      </div>
                     </div>
                     <div className="pixel-border rounded-lg p-3">
                       <div className="mb-2 text-white/80 text-xs">Dirección de facturación</div>
-                      <AddressElement options={{ mode: 'billing', fields: { phone: 'never' } }} onChange={(e: StripeAddressElementChangeEvent)=> {
-                        const a = e?.value?.address;
-                        setBillingAddress(a ? { line1: a.line1, line2: a.line2 ?? undefined, city: a.city, state: a.state, postal_code: a.postal_code, country: a.country } : undefined);
-                      }} />
+                      <AddressElement
+                        key={addrKey}
+                        options={{
+                          mode: 'billing',
+                          fields: { phone: 'never' },
+                          // AddressElement types require country when providing default address
+                          defaultValues: { name: nameFromUser, address: (billingAddress ? { ...normalizeAddress(billingAddress), country: billingAddress.country || 'MX' } : undefined) as unknown as { country: string } },
+                        }}
+                        onChange={(e: StripeAddressElementChangeEvent)=> {
+                          const a = e?.value?.address;
+                          const raw = a ? { line1: a.line1, line2: a.line2 ?? undefined, city: a.city, state: a.state, postal_code: a.postal_code, country: a.country } : undefined;
+                          const wasWeird = !!(raw && (!raw.line1 || raw.line1.trim() === '') && raw.line2);
+                          const norm = normalizeAddress(raw);
+                          setBillingAddress(norm);
+                          if (wasWeird) setAddrKey(k => k + 1); // remount to apply normalized defaultValues
+                        }}
+                      />
                     </div>
                   </div>
                   {/* Right: Summary + promo */}
@@ -398,7 +417,7 @@ function Inner({ planId, cycle, initialEmail, onClose }: { planId: string; cycle
   );
 }
 
-export default function ElementsCheckoutModal({ open, onClose, planId, cycle, email }: Props) {
+export default function ElementsCheckoutModal({ open, onClose, planId, cycle }: Props) {
   // ESC and overlay close behaviors
   useEffect(() => {
     if (!open) return;
@@ -416,7 +435,7 @@ export default function ElementsCheckoutModal({ open, onClose, planId, cycle, em
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <Suspense fallback={<div className="text-white/80">Cargando…</div>}>
-          <Inner planId={planId} cycle={cycle} initialEmail={email} onClose={onClose} />
+          <Inner planId={planId} cycle={cycle} onClose={onClose} />
         </Suspense>
       </div>
     </div>

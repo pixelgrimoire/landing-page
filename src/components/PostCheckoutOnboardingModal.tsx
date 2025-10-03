@@ -4,19 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SignIn, SignUp, useUser } from '@clerk/nextjs';
 import { clerkAppearance } from '@/lib/clerkAppearance';
+import { PROJECTS } from '@/lib/constants';
 
 type Props = {
   open: boolean;
   customerId?: string | null;
   onClose?: () => void;
 };
-
-const PROJECTS = [
-  { slug: 'qubito', label: 'Qubito' },
-  { slug: 'nexia', label: 'Nexia' },
-  { slug: 'nexora', label: 'Nexora' },
-  { slug: 'soja', label: 'Soja' },
-];
 
 export default function PostCheckoutOnboardingModal({ open, customerId, onClose }: Props) {
   const router = useRouter();

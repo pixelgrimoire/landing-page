@@ -56,3 +56,10 @@ export const PLANS: Plan[] = [
   },
 ];
 
+export type ProjectOption = { slug: string; label: string };
+export const PROJECTS: ProjectOption[] = [
+  { slug: 'qubito', label: 'Qubito' },
+  { slug: 'nexia', label: 'Nexia' },
+  { slug: 'nexora', label: 'Nexora' },
+  { slug: 'soja', label: 'Soja' },
+];

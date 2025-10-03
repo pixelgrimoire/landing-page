@@ -1,20 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { MAIL_TO } from '@/lib/constants';
 
 export default function Footer() {
+  const { user } = useUser();
   const [email, setEmail] = useState('');
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('pg_email') || '' : '';
-    if (stored) setEmail(stored);
-  }, []);
+    const u = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '';
+    if (u && u !== email) setEmail(u);
+  }, [user, email]);
 
-  const onChange = (v: string) => {
-    setEmail(v);
-    try { localStorage.setItem('pg_email', v); } catch {}
-  };
+  const onChange = (v: string) => setEmail(v);
 
   const supportHref = () => {
     const subject = encodeURIComponent('PixelGrimoire — Soporte');

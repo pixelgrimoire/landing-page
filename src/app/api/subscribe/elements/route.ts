@@ -76,10 +76,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If we received an address, update the Customer before creating the subscription
+    // If we received an address, normalize and update the Customer before creating the subscription
     try {
+      const normAddress = (a?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | null) => {
+        if (!a) return undefined;
+        const line1 = (a.line1 || '').trim();
+        const line2 = (a.line2 || '').trim();
+        if (!line1 && line2) return { ...a, line1: line2, line2: undefined };
+        return a;
+      };
       if (customerId && customerDetails?.address) {
-        await stripe.customers.update(customerId, { address: customerDetails.address });
+        await stripe.customers.update(customerId, { address: normAddress(customerDetails.address) });
       }
     } catch {}
 

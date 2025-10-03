@@ -22,6 +22,14 @@ export async function POST(req: NextRequest) {
     if (!secret) return new Response(JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     const stripe = new Stripe(secret);
 
+    const normAddress = (a?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | null) => {
+      if (!a) return undefined;
+      const line1 = (a.line1 || '').trim();
+      const line2 = (a.line2 || '').trim();
+      if (!line1 && line2) return { ...a, line1: line2, line2: undefined };
+      return a;
+    };
+
     let discountInput: { coupon?: string }[] | undefined = undefined;
     if (promotionCode && promotionCode.trim()) {
       const promos = await stripe.promotionCodes.list({ code: promotionCode.trim(), active: true, limit: 1 });
@@ -39,7 +47,7 @@ export async function POST(req: NextRequest) {
       customer_details: customerDetails ? {
         name: customerDetails.name,
         email: customerDetails.email,
-        address: customerDetails.address,
+        address: normAddress(customerDetails.address),
       } : undefined,
     });
 

@@ -1,14 +1,15 @@
 ﻿"use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Elements, PaymentElement, useElements, useStripe, LinkAuthenticationElement, AddressElement } from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, useElements, useStripe, AddressElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import GlobalStyle from '@/components/GlobalStyle';
 import { useUser } from '@clerk/nextjs';
+import AuthGateModal from '@/components/AuthGateModal';
 
-function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
+function CheckoutForm({ intentType, email, name, address }: { intentType: 'payment' | 'setup'; email?: string; name?: string; address?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -31,11 +32,17 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
     setSubmitting(true);
     let error;
     setErrMsg(null);
+    const billing: Record<string, unknown> = {};
+    if (email) billing.email = email;
+    if (name) billing.name = name;
+    if (address) billing.address = address;
+
     if (intentType === 'setup') {
       ({ error } = await stripe.confirmSetup({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/subscribe/success?checkout=success`,
+          payment_method_data: Object.keys(billing).length ? { billing_details: billing } : undefined,
         },
       }));
     } else {
@@ -43,6 +50,7 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/subscribe/success?checkout=success`,
+          payment_method_data: Object.keys(billing).length ? { billing_details: billing } : undefined,
         },
       }));
     }
@@ -58,11 +66,12 @@ function CheckoutForm({ intentType }: { intentType: 'payment' | 'setup' }) {
         <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 rounded p-2">{errMsg}</div>
       )}
       <div className="pixel-border rounded-lg p-3">
-        <PaymentElement
+                        <PaymentElement
           key={layoutType}
           options={{
             layout: { type: layoutType, defaultCollapsed: layoutType === 'accordion' },
-            fields: { billingDetails: { name: 'auto', email: 'never', address: 'auto' } },
+            // Avoid duplication; we collect address via AddressElement
+            fields: { billingDetails: { name: 'auto', email: 'never', address: 'never' } },
           }}
         />
       </div>
@@ -94,6 +103,7 @@ function ElementsInner() {
   const [intentType, setIntentType] = useState<'payment' | 'setup' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [promotionCode, setPromotionCode] = useState('');
   const [applying, setApplying] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -101,11 +111,23 @@ function ElementsInner() {
   const [price, setPrice] = useState<{ unit_amount: number | null; currency: string; interval: 'day'|'week'|'month'|'year' } | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | undefined>(searchParams.get('email') || undefined);
+  const [email, setEmail] = useState<string | undefined>(undefined);
   const [totals, setTotals] = useState<{ subtotal?: number; tax?: number; total?: number; discount?: number; currency?: string; lineDescription?: string } | null>(null);
   const [planIdLabel, setPlanIdLabel] = useState('');
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
+  const [addrKey, setAddrKey] = useState(0);
+
+  // Normalize address so line1 is always present
+  const normalizeAddress = (a?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | null) => {
+    if (!a) return undefined;
+    const line1 = (a.line1 || '').trim();
+    const line2 = (a.line2 || '').trim();
+    if (!line1 && line2) {
+      return { ...a, line1: line2, line2: undefined };
+    }
+    return a;
+  };
 
   function formatMoney(amountMinor: number | null | undefined, currency: string) {
     if (amountMinor == null) return '—';
@@ -135,10 +157,14 @@ function ElementsInner() {
         body: JSON.stringify({
           planId,
           billingCycle,
-          // Si no está logueado, enviamos el email capturado; si está logueado, no es necesario
-          email: !isSignedIn ? (email || searchParams.get('email') || undefined) : undefined,
+          // Ya exigimos sesión: no enviamos email suelto
+          email: undefined,
           promotionCode: opts?.promo || undefined,
-          customerDetails: billingAddress ? { address: billingAddress, email } : (email ? { email } : undefined),
+          customerDetails: billingAddress
+            ? { address: billingAddress, email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
+            : ((email || (user?.fullName || user?.firstName || user?.lastName))
+                ? { email, name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined) }
+                : undefined),
         })
       });
       const data = await res.json();
@@ -178,26 +204,32 @@ function ElementsInner() {
   useEffect(() => {
     (async () => {
       if (!stripePromise) { setError('Stripe publishable key missing'); return; }
-      // Si está logueado o ya viene email en query, creamos la sesión de inmediato
-      const emailFromQuery = searchParams.get('email');
-      if (isSignedIn || emailFromQuery) {
+      // Solo creamos la sesión si ya está logueado
+      if (isSignedIn) {
         setLoading(true);
         try { await createSession(); } finally { setLoading(false); }
       }
     })();
-  }, [searchParams, stripePromise, isSignedIn, createSession]);
+  }, [stripePromise, isSignedIn, createSession]);
 
-  // Si no está logueado y no se ha creado sesión aún, créala cuando el usuario ingrese email
+  // Sincroniza el email desde Clerk para usarlo en detalles del cliente
   useEffect(() => {
-    if (!stripePromise) return;
-    if (isSignedIn) return;
+    const u = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress;
+    if (u && u !== email) setEmail(u);
+  }, [user, email]);
+
+  // Abrir modal de autenticación si no hay sesión
+  useEffect(() => {
+    if (!isSignedIn && !clientSecret) setAuthOpen(true);
+    else setAuthOpen(false);
+  }, [isSignedIn, clientSecret]);
+
+  const handleAuthed = useCallback(async () => {
+    // Al autenticarse, creamos la sesión y cerramos el modal
     if (clientSecret) return;
-    if (!email) return;
-    (async () => {
-      setLoading(true);
-      try { await createSession(); } finally { setLoading(false); }
-    })();
-  }, [email, isSignedIn, clientSecret, stripePromise, createSession]);
+    setLoading(true);
+    try { await createSession(); } finally { setLoading(false); }
+  }, [clientSecret, createSession]);
 
   // Debounced preview of totals
   useEffect(() => {
@@ -244,6 +276,7 @@ function ElementsInner() {
 
   return (
     <div className="pg-bg min-h-screen text-white relative overflow-x-clip">
+      <AuthGateModal open={authOpen} onClose={() => setAuthOpen(false)} onAuthed={handleAuthed} />
       <div className="min-h-[80vh] flex items-center justify-center py-16 px-4">
         <GlobalStyle />
         <div className="relative w-full max-w-3xl min-h-[640px] rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border">
@@ -280,31 +313,35 @@ function ElementsInner() {
                       <div className="animate-pulse">Cargando…</div>
                   </div>
                 ) : (
-                  <Elements options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>
+                  <Elements key={clientSecret || 'cs'} options={{ clientSecret, appearance, loader: 'always', locale: 'es' }} stripe={stripePromise}>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       <div className="md:col-span-3 space-y-4">
                         <div className="pixel-border rounded-lg p-3">
                           <div className="mb-2 text-white/80 text-xs">Correo electrónico</div>
-                          {isSignedIn ? (
-                            <div className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/80 text-sm select-none cursor-not-allowed">
-                              {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '—'}
-                            </div>
-                          ) : (
-                            <LinkAuthenticationElement
-                              options={ email ? { defaultValues: { email } } : undefined }
-                              onChange={(e)=> setEmail(e.value?.email || undefined) }
-                            />
-                          )}
+                          <div className="px-3 py-2 rounded bg-white/5 border border-white/10 text-white/80 text-sm select-none cursor-not-allowed">
+                            {user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || email || '—'}
+                          </div>
                         </div>
                         <div className="pixel-border rounded-lg p-3">
                           <div className="mb-2 text-white/80 text-xs">Dirección de facturación</div>
                           <AddressElement
-                            options={{ mode: 'billing', fields: { phone: 'never' } }}
+                            key={addrKey}
+                            options={{
+                              mode: 'billing',
+                              fields: { phone: 'never' },
+                              defaultValues: { name: (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined), address: (billingAddress ? { ...normalizeAddress(billingAddress), country: billingAddress.country || 'MX' } : undefined) as unknown as { country: string } },
+                            }}
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            onChange={(e: any)=> setBillingAddress(e?.value?.address || undefined)}
+                            onChange={(e: any)=> {
+                              const a = e?.value?.address || undefined;
+                              const wasWeird = !!(a && (!a.line1 || String(a.line1).trim() === '') && a.line2);
+                              const norm = normalizeAddress(a);
+                              setBillingAddress(norm);
+                              if (wasWeird) setAddrKey(k => k + 1);
+                            }}
                           />
                         </div>
-                        <CheckoutForm intentType={intentType} />
+                        <CheckoutForm intentType={intentType} email={email} name={(user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined)} address={billingAddress as any} />
                       </div>
                       <div className="md:col-span-2 space-y-3">
                         <div className="pixel-border rounded-lg p-4">

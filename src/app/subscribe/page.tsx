@@ -30,7 +30,7 @@ function SubscribeInner() {
       const billingCycle = (searchParams.get('cycle') === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
       const res = await fetch('/api/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, billingCycle, email: searchParams.get('email') || undefined })
+        body: JSON.stringify({ planId, billingCycle })
       });
       const data = await res.json();
       if (!res.ok || !data?.url) throw new Error(data?.error || 'No se pudo iniciar el checkout');
@@ -59,7 +59,7 @@ function SubscribeInner() {
 
         const res = await fetch('/api/checkout/embedded', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId, billingCycle, email: searchParams.get('email') || undefined })
+          body: JSON.stringify({ planId, billingCycle })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || 'No se pudo iniciar el checkout');

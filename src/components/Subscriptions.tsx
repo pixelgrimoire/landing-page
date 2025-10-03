@@ -1,21 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import MagicPlanCard from '@/components/MagicPlanCard';
 import ElementsCheckoutModal from '@/components/ElementsCheckoutModal';
+import AuthGateModal from '@/components/AuthGateModal';
 import { PLANS, type Plan } from '@/lib/constants';
+import { useUser } from '@clerk/nextjs';
 
 export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: boolean }) {
+  const { isSignedIn } = useUser();
   const [yearly, setYearly] = useState(true);
   const [loading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
-  const subscribe = async (plan: Plan) => {
-    // Open modal with Stripe Embedded Checkout
+  const subscribe = useCallback(async (plan: Plan) => {
     setSelectedPlan(plan);
-    setModalOpen(true);
-  };
+    // If not signed in, show auth modal first; after auth, open checkout
+    if (!isSignedIn) {
+      setAuthOpen(true);
+      return;
+    }
+    setCheckoutOpen(true);
+  }, [isSignedIn]);
+
+  const handleAuthed = useCallback(() => {
+    // Open checkout once Clerk signals the session is active
+    setCheckoutOpen(true);
+  }, []);
 
   return (
     <section id="pricing" className="relative z-20 py-20" data-magic={magicEnabled ? 'on' : 'off'}>
@@ -34,11 +47,15 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
         </div>
         {/* Modal mount: custom Elements flow (preferred) */}
         <ElementsCheckoutModal
-          open={modalOpen}
-          onClose={()=> setModalOpen(false)}
+          open={checkoutOpen}
+          onClose={()=> setCheckoutOpen(false)}
           planId={selectedPlan?.id || 'apprentice'}
           cycle={yearly ? 'yearly' : 'monthly'}
-          email={typeof window !== 'undefined' ? (localStorage.getItem('pg_email') || undefined) : undefined}
+        />
+        <AuthGateModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onAuthed={handleAuthed}
         />
       </div>
     </section>
