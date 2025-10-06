@@ -23,12 +23,14 @@ export default function Hero({ magicEnabled }: { magicEnabled: boolean }) {
         </div>
 
         <div className="relative fade-up" style={{animationDelay:'140ms'}}>
-          <div className="relative mx-auto max-w-[520px] rounded-xl p-4 glass">
-            <div className="relative float-slow">
-              <div className="absolute -inset-10 -z-10 blur-3xl opacity-30" style={{background:'conic-gradient(from 0deg, #FACC15, #2563EB, #6B21A8, #FACC15)'}}/>
-                <BlueFlames enabled={magicEnabled} />
+          <div className={`relative mx-auto max-w-[520px] rounded-xl p-4 ${magicEnabled ? 'glass' : ''}`}>
+            <div className={`relative ${magicEnabled ? 'float-slow' : ''}`}>
+              {magicEnabled && (
+                <div className="absolute -inset-10 -z-10 blur-3xl opacity-30" style={{background:'conic-gradient(from 0deg, #FACC15, #2563EB, #6B21A8, #FACC15)'}}/>
+              )}
+              {magicEnabled && <BlueFlames enabled />}
                 <Image
-                  src="/PixelGrimoireSimple.png"
+                  src={magicEnabled ? "/PixelGrimoireSimple.png" : "/Logo Pixel Grimoire Simple.svg"}
                   alt="Grimorio abierto con runas"
                   width={1024}
                   height={1024}

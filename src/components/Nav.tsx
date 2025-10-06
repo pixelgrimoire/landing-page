@@ -101,12 +101,16 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
         <div className="relative glass border border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 select-none">
-            <div className="w-9 h-9 grid place-content-center rounded-md bg-yellow-500/20 pixel-border">
+            <div className={`w-9 h-9 grid place-content-center rounded-md ${magicEnabled ? 'bg-yellow-500/20' : ''} pixel-border`}>
+              {magicEnabled ? (
               <Image src="/PixelGrimoire.png" alt="" width={36} height={36} className="w-7 h-7 pixelated" aria-hidden />
+                ) : (
+                <Image src="/Logo Pixel Grimoire Simple.svg" alt="" width={72} height={72} className="w-24 h-24" aria-hidden />
+                )}
             </div>
             <div className="leading-tight">
               <div className="text-white font-semibold tracking-wide smooth-font">PixelGrimoire</div>
-              <div className="text-white/60 text-[10px] pixel-font">where code meets magic</div>
+              <div className="text-white/60 text-[10px] pixel-font">donde el código se encuentra con la magia</div>
             </div>
           </div>
           {/* Desktop navigation */}

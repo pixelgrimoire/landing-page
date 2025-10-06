@@ -5,9 +5,21 @@ import { dark } from '@clerk/themes';
 export const clerkAppearance: Appearance = {
   layout: {
     logoPlacement: 'inside',
-    logoImageUrl: '/PixelGrimoireSimple.png',
+    logoImageUrl: '/Logo Pixel Grimoire.svg',
     socialButtonsPlacement: 'bottom',
     helpPageUrl: 'mailto:sales@pixelgrimoire.com',
   },
   theme: dark,
+  elements: {
+    logoBox: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: '6px',
+    },
+    logoImage: {
+      width: '152px',
+      height: '152px',
+    },
+  },
 };

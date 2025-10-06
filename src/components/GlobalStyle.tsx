@@ -54,6 +54,8 @@ export default function GlobalStyle() {
       .magic-card.flipped .magic-inner { transform: rotateY(180deg); }
       .magic-pane { position:absolute; inset:0; border-radius:inherit; backface-visibility:hidden; overflow:hidden; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:1.25rem; }
       .magic-front { background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.1); }
+      /* Optional darker skin to match the annual/back face */
+      .magic-skin { color:#fff; background: radial-gradient(60% 60% at 50% 50%, rgba(0,10,30,.8), rgba(0,10,40,.95)) !important; border:1px solid rgba(255,255,255,.06) !important; }
       .magic-back { transform: rotateY(180deg); color:#fff; background: radial-gradient(60% 60% at 50% 50%, rgba(0,10,30,.8), rgba(0,10,40,.95)); border:1px solid rgba(255,255,255,.06); }
       .card-glow { position:absolute; inset:0; border-radius:inherit; pointer-events:none; opacity:0; transition:opacity .3s ease; background: radial-gradient( circle at var(--mouse-x) var(--mouse-y), var(--glow) 0%, transparent 60% ); filter: blur(18px); z-index:0; }
       .magic-card:hover .card-glow, .magic-card.active .card-glow { opacity:.85; }
@@ -65,9 +67,18 @@ export default function GlobalStyle() {
       [data-magic='off'] .highlight { opacity: 0; }
       .mag-circle { position:absolute; width:220px; height:220px; left:50%; top:50%; transform:translate(-50%,-50%); border-radius:50%; border:2px solid var(--glow); box-shadow:0 0 20px var(--glow), inset 0 0 16px var(--glow); opacity:.9; animation: spin 22s linear infinite; }
       @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-      .rune { position:absolute; font-size:1.6rem; color: var(--glow); filter: drop-shadow(0 0 10px var(--glow)); opacity:0; transition: opacity .4s ease, transform .6s ease; pointer-events:none; }
+      .rune { position:absolute; font-size:1.6rem; color: var(--glow); filter: drop-shadow(0 0 10px var(--glow)); opacity:.5; transition: opacity .4s ease, transform .6s ease; pointer-events:none; }
       .magic-card.flipped .rune { opacity:1; }
       .rune-sprite { position:absolute; filter: drop-shadow(0 0 10px rgba(250,204,21,0.9)); opacity:0; will-change: transform, opacity, filter; }
+      .rune-layer { transform: translate(var(--parallax-x, 0px), var(--parallax-y, 0px)); transition: transform .12s ease-out; will-change: transform; z-index: 0; }
+      .rune-mini-wrap { position:absolute; transform: translate(-50%,-50%); animation: miniFloat var(--fdur, 8s) ease-in-out var(--fdel, 0s) infinite; }
+      .rune-mini { display:inline-block; font-size: .9rem; opacity: .65; color: var(--glow); filter: drop-shadow(0 0 6px var(--glow)); animation: miniPulse 5.5s ease-in-out var(--tdel, 0s) infinite; }
+      @keyframes miniFloat {
+        0% { transform: translate(-50%, -50%); }
+        50% { transform: translate(calc(-50% + var(--dx, 6px)), calc(-50% + var(--dy, -4px))); }
+        100% { transform: translate(-50%, -50%); }
+      }
+      @keyframes miniPulse { 0%,100% { opacity: .55; filter: drop-shadow(0 0 5px var(--glow)); } 50% { opacity: .9; filter: drop-shadow(0 0 10px var(--glow)); } }
 
       /* Hero overrides for serious mode */
       .hero-title { transition: all .35s ease; }
@@ -160,6 +171,10 @@ export default function GlobalStyle() {
         60% { opacity: .9; transform: translate(var(--dx, 0px), calc(-1 * var(--h, 26px))) scale(1); }
         100% { opacity: 0; transform: translate(calc(var(--dx, 0px) * 1.2), calc(-1 * var(--h, 26px) - 10px)) scale(.9); filter: blur(1px); }
       }
+
+      /* Clerk logo swap: when magic is OFF, show SVG bg and hide the img */
+      [data-magic='off'] .cl-logoBox { background-image: url('/Logo Pixel Grimoire Simple.svg'); background-size: contain; background-repeat: no-repeat; background-position: center; }
+      [data-magic='off'] .cl-logoBox .cl-logoImage { opacity: 0 !important; width: 0 !important; height: 0 !important; }
     `}</style>
   );
 }
