@@ -3,6 +3,7 @@ export const MAIL_TO = 'mailto:admin@pixelgrimoire.com';
 export type Plan = {
   id: string;
   name: string;
+  subtitle?: string;
   features: string[];
   priceM: number;
   priceY: number;

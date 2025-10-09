@@ -89,11 +89,9 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
                 plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text-black pixel-font">Más popular</span>
               )}
             </div>
-            {/* Subtítulo estilo Dock */}
+            {/* Subtítulo */}
             <div className="text-white/70 text-xs sm:text-sm smooth-font mt-1">
-              {plan.id === 'apprentice' && 'Perfecto para 1 solución'}
-              {plan.id === 'mage' && 'Para negocios en crecimiento'}
-              {plan.id === 'archmage' && 'Todas las apps + funciones avanzadas'}
+              {plan.subtitle || (plan.id === 'apprentice' ? 'Perfecto para 1 solución' : plan.id === 'mage' ? 'Para negocios en crecimiento' : plan.id === 'archmage' ? 'Todas las apps + funciones avanzadas' : '')}
             </div>
             <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${priceM}<span className="text-base text-white/60"> USD/mes</span></div>
             {/* Lista con checks como Dock */}
@@ -150,9 +148,7 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
               )}
             </div>
             <div className="text-white/70 text-xs sm:text-sm smooth-font mt-1">
-              {plan.id === 'apprentice' && 'Perfecto para 1 solución'}
-              {plan.id === 'mage' && 'Para negocios en crecimiento'}
-              {plan.id === 'archmage' && 'Todas las apps + funciones avanzadas'}
+              {plan.subtitle || (plan.id === 'apprentice' ? 'Perfecto para 1 solución' : plan.id === 'mage' ? 'Para negocios en crecimiento' : plan.id === 'archmage' ? 'Todas las apps + funciones avanzadas' : '')}
             </div>
             <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${priceY}<span className="text-base text-white/60"> USD/año</span></div>
             <div className="text-emerald-400 text-xs sm:text-sm mt-1 smooth-font">{saving}</div>

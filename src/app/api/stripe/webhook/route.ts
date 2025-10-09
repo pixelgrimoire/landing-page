@@ -45,6 +45,55 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
+      case 'product.updated': {
+        const prod = event.data.object as Stripe.Product & { metadata?: Record<string, string> };
+        const planIdMeta = prod.metadata?.planId?.toString().toLowerCase();
+        try {
+          if (planIdMeta) {
+            await prisma.planConfig.update({ where: { planId: planIdMeta }, data: { name: prod.name, stripeProductId: prod.id } }).catch(()=>undefined);
+          } else {
+            await prisma.planConfig.updateMany({ where: { stripeProductId: prod.id }, data: { name: prod.name } });
+          }
+        } catch {}
+        break;
+      }
+      case 'product.deleted': {
+        const prod = event.data.object as { id: string };
+        try {
+          await prisma.planConfig.updateMany({ where: { stripeProductId: prod.id }, data: { stripeProductId: null, comingSoon: true } });
+        } catch {}
+        break;
+      }
+      case 'price.created':
+      case 'price.updated': {
+        const price = event.data.object as Stripe.Price & { lookup_key?: string | null };
+        const prodId = typeof price.product === 'string' ? price.product : price.product?.id;
+        const lk = (price.lookup_key || price.nickname || '') as string;
+        const tryUpdateByLookup = async () => {
+          if (!lk) return false;
+          const m = lk.match(/^([A-Z0-9_-]+)_([MY])$/i);
+          if (!m) return false;
+          const planLower = m[1].toLowerCase();
+          const which = m[2].toUpperCase();
+          if (which === 'M') {
+            await prisma.planConfig.update({ where: { planId: planLower }, data: { priceMonthlyId: price.id } }).catch(()=>undefined);
+          } else {
+            await prisma.planConfig.update({ where: { planId: planLower }, data: { priceYearlyId: price.id } }).catch(()=>undefined);
+          }
+          return true;
+        };
+        const ok = await tryUpdateByLookup();
+        if (!ok && prodId) {
+          // Fallback: infer by interval via product id
+          const rec = price.recurring?.interval;
+          if (rec === 'month') {
+            await prisma.planConfig.updateMany({ where: { stripeProductId: prodId }, data: { priceMonthlyId: price.id } });
+          } else if (rec === 'year') {
+            await prisma.planConfig.updateMany({ where: { stripeProductId: prodId }, data: { priceYearlyId: price.id } });
+          }
+        }
+        break;
+      }
       case 'checkout.session.completed': {
         // Útil para enlazar el customer con tu usuario interno (mediante metadata)
         const session = event.data.object as Stripe.Checkout.Session;

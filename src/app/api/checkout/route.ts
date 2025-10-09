@@ -25,10 +25,18 @@ export async function POST(req: NextRequest) {
 
     // Mapear planId + ciclo a un Price ID vía env, ej.: STRIPE_PRICE_APPRENTICE_M / STRIPE_PRICE_APPRENTICE_Y
     const pid = planId.toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
-    const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
-    const priceId = (process.env as Record<string, string | undefined>)[key];
+    let priceId: string | undefined;
+    try {
+      const cfg = await (await import('@/lib/prisma')).prisma.planConfig.findUnique({ where: { planId: planId.toString().toLowerCase() } });
+      priceId = billingCycle === 'yearly' ? (cfg?.priceYearlyId || undefined) : (cfg?.priceMonthlyId || undefined);
+    } catch {}
     if (!priceId) {
-      return new Response(JSON.stringify({ error: `Falta configurar ${key}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
+      priceId = (process.env as Record<string, string | undefined>)[key];
+    }
+    if (!priceId) {
+      const msgKey = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}`;
+      return new Response(JSON.stringify({ error: `Falta configurar ${msgKey}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     const url = new URL(req.url);
@@ -61,6 +69,10 @@ export async function POST(req: NextRequest) {
       await prisma.claimToken.create({ data: { tokenHash, email: (email && email.includes('@')) ? email : undefined, expiresAt } });
     }
 
+    // Trial mapping by plan
+    const pidLower = planId.toString().toLowerCase();
+    const trialDays = pidLower === 'apprentice' ? 7 : pidLower === 'mage' ? 14 : 0;
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -70,6 +82,7 @@ export async function POST(req: NextRequest) {
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
       customer_update: { address: 'auto', name: 'auto' },
+      subscription_data: trialDays > 0 ? { trial_period_days: trialDays, trial_settings: { end_behavior: { missing_payment_method: 'cancel' } } } : undefined,
       success_url: claimToken ? `${origin}/register?token=${claimToken}` : `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancel#pricing`,
       client_reference_id: internalUserId,

@@ -94,6 +94,7 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
   const [addrKey, setAddrKey] = useState(0);
+  const [trialDays, setTrialDays] = useState<number | null>(null);
   
 
   // Detect global magic toggle to adapt Stripe appearance (serious mode)
@@ -170,6 +171,7 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
       setCustomerId(data.customer_id || null);
       setSubscriptionId(data.subscription_id || null);
       setPriceId(data.price_id || null);
+      setTrialDays(typeof data.trial_days === 'number' ? data.trial_days : null);
       if (typeof data.promotion_invalid !== 'undefined' && data.promotion_invalid) {
         setPromoError('Código de promoción no válido.');
         setLastInvalidPromo(normalizePromo(opts?.promo || promotionCode));
@@ -379,7 +381,15 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
                       {totals?.lineDescription && (
                         <div className="text-xs text-white/60 -mt-1 mb-2">{totals.lineDescription}</div>
                       )}
-                      {totals && (
+                      {trialDays && trialDays > 0 ? (
+                        <div className="text-sm text-white/80 mt-3 space-y-1">
+                          <div className="flex justify-between"><span className="text-white/70">Hoy</span><span>{formatMoney(0, price?.currency || 'USD')}</span></div>
+                          <div className="text-emerald-400 text-[12px] mt-1">Prueba gratis de {trialDays} días</div>
+                          {totals && (
+                            <div className="flex justify-between mt-2"><span className="text-white/70">Luego</span><span>{formatMoney(totals.total ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
+                          )}
+                        </div>
+                      ) : totals && (
                         <div className="text-sm text-white/80 mt-3 space-y-1">
                           <div className="flex justify-between"><span className="text-white/70">Subtotal</span><span>{formatMoney(totals.subtotal ?? null, totals.currency || (price?.currency || 'USD'))}</span></div>
                           {!!(totals.discount && totals.discount > 0) && (

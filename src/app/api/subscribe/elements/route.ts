@@ -36,10 +36,18 @@ export async function POST(req: NextRequest) {
   const stripe = new Stripe(secret);
 
     const pid = planId.toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
-    const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
-    const priceId = (process.env as Record<string, string | undefined>)[key];
+    let priceId: string | undefined;
+    try {
+      const cfg = await (await import('@/lib/prisma')).prisma.planConfig.findUnique({ where: { planId: planId.toString().toLowerCase() } });
+      priceId = billingCycle === 'yearly' ? (cfg?.priceYearlyId || undefined) : (cfg?.priceMonthlyId || undefined);
+    } catch {}
     if (!priceId) {
-      return new Response(JSON.stringify({ error: `Falta configurar ${key}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
+      priceId = (process.env as Record<string, string | undefined>)[key];
+    }
+    if (!priceId) {
+      const msgKey = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}`;
+      return new Response(JSON.stringify({ error: `Falta configurar ${msgKey}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Determine or create customer
@@ -102,12 +110,18 @@ export async function POST(req: NextRequest) {
       }
     } catch {}
 
+    // Trial mapping per plan
+    const planUpper = planId.toString().toLowerCase();
+    const trialDays = planUpper === 'apprentice' ? 7 : planUpper === 'mage' ? 14 : 0;
+
     // Create subscription in incomplete state to collect payment via Payment Element
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId, quantity: 1 }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },
+      trial_period_days: trialDays > 0 ? trialDays : undefined,
+      trial_settings: trialDays > 0 ? { end_behavior: { missing_payment_method: 'cancel' } } : undefined,
       // Enable automatic tax if we know or just updated customer's address
       automatic_tax: hasLocation || !!customerDetails?.address ? { enabled: true } : undefined,
       discounts: promotion_code_id ? [{ promotion_code: promotion_code_id }] : undefined,
@@ -133,14 +147,14 @@ export async function POST(req: NextRequest) {
 
     if (paymentIntentCS) {
       return new Response(
-        JSON.stringify({ client_secret: paymentIntentCS, subscription_id: subscription.id, intent_type: 'payment', price: { unit_amount, currency, interval }, planId, billingCycle, customer_id: customerId, price_id: priceId, promotion_invalid: promotion_invalid || undefined }),
+        JSON.stringify({ client_secret: paymentIntentCS, subscription_id: subscription.id, intent_type: 'payment', price: { unit_amount, currency, interval }, planId, billingCycle, customer_id: customerId, price_id: priceId, promotion_invalid: promotion_invalid || undefined, trial_days: trialDays || undefined }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     if (setupIntentCS) {
       return new Response(
-        JSON.stringify({ client_secret: setupIntentCS, subscription_id: subscription.id, intent_type: 'setup', price: { unit_amount, currency, interval }, planId, billingCycle, customer_id: customerId, price_id: priceId, promotion_invalid: promotion_invalid || undefined }),
+        JSON.stringify({ client_secret: setupIntentCS, subscription_id: subscription.id, intent_type: 'setup', price: { unit_amount, currency, interval }, planId, billingCycle, customer_id: customerId, price_id: priceId, promotion_invalid: promotion_invalid || undefined, trial_days: trialDays || undefined }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -153,7 +167,7 @@ export async function POST(req: NextRequest) {
     });
 
     return new Response(
-      JSON.stringify({ client_secret: si.client_secret, subscription_id: subscription.id, intent_type: 'setup', fallback: true, price: { unit_amount, currency, interval }, planId, billingCycle, customer_id: customerId, price_id: priceId, promotion_invalid: promotion_invalid || undefined }),
+      JSON.stringify({ client_secret: si.client_secret, subscription_id: subscription.id, intent_type: 'setup', fallback: true, price: { unit_amount, currency, interval }, planId, billingCycle, customer_id: customerId, price_id: priceId, promotion_invalid: promotion_invalid || undefined, trial_days: trialDays || undefined }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (e: unknown) {

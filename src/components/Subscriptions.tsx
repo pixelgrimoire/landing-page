@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import MagicPlanCard from '@/components/MagicPlanCard';
 import DockPlanCard from '@/components/DockPlanCard';
 import ElementsCheckoutModal from '@/components/ElementsCheckoutModal';
@@ -15,6 +15,7 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [plans, setPlans] = useState<Plan[] | null>(null);
 
   const subscribe = useCallback(async (plan: Plan) => {
     setSelectedPlan(plan);
@@ -29,6 +30,35 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
   const handleAuthed = useCallback(() => {
     // Open checkout once Clerk signals the session is active
     setCheckoutOpen(true);
+  }, []);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/plans', { cache: 'no-store' });
+        const data = await res.json();
+        if (!alive) return;
+        if (res.ok && Array.isArray(data?.items) && data.items.length) {
+          type ApiPlan = { id: string; name: string; subtitle?: string; features?: string[]; priceM?: number; priceY?: number; popular?: boolean; comingSoon?: boolean; color?: string };
+          const mapped: Plan[] = (data.items as ApiPlan[]).map((it) => ({
+            id: it.id,
+            name: it.name,
+            subtitle: it.subtitle,
+            features: Array.isArray(it.features) ? it.features : [],
+            priceM: typeof it.priceM === 'number' ? it.priceM : 0,
+            priceY: typeof it.priceY === 'number' ? it.priceY : 0,
+            popular: !!it.popular,
+            comingSoon: !!it.comingSoon,
+            color: it.color || '#ffffff',
+          }));
+          setPlans(mapped);
+        } else {
+          setPlans(PLANS);
+        }
+      } catch { setPlans(PLANS); }
+    })();
+    return () => { alive = false; };
   }, []);
 
   return (
@@ -56,7 +86,7 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
         </div>
 
         <div className="relative grid md:grid-cols-3 gap-6 mt-10">
-          {PLANS.map((p) => (
+          {(plans || PLANS).map((p) => (
             magicEnabled ? (
               <MagicPlanCard key={p.id} plan={p} yearly={yearly} onSubscribeAction={subscribe} />
             ) : (

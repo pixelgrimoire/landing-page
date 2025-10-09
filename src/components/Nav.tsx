@@ -3,8 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { cls } from '@/lib/utils';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from '@clerk/nextjs';
 import SubscriptionManager from '@/components/SubscriptionManager';
+import AdminPanel from '@/components/AdminPanel';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 function MagicToggleButton({ magicEnabled, onClick, className }: { magicEnabled: boolean; onClick: () => void; className?: string }) {
@@ -94,6 +95,15 @@ function MagicToggleButton({ magicEnabled, onClick, className }: { magicEnabled:
 export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMagicAction: () => void; magicEnabled: boolean }) {
   const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const { user } = useUser();
+  const isAdmin = useMemo(() => {
+    try {
+      const primary = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '';
+      const list = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+      return !!primary && list.includes(primary.toLowerCase());
+    } catch { return false; }
+  }, [user?.primaryEmailAddress?.emailAddress, user?.emailAddresses]);
 
   const closeMenu = () => setMenuOpen(false);
   return (
@@ -140,6 +150,32 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
                     <UserButton.UserProfilePage label="account" />
                     <UserButton.UserProfilePage label="security" />
                   </UserButton>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      aria-label="Abrir admin"
+                      onClick={() => setAdminOpen(true)}
+                      className="ml-2 inline-flex items-center justify-center w-9 h-9 rounded-md border border-white/20 text-white/80 hover:bg-white/5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16">
+                        <g fill="none">
+                          <g clipPath="url(#gravityUiGear0)">
+                            <path
+                              fill="#ffffff"
+                              fillRule="evenodd"
+                              d="M7.199 2H8.8a.2.2 0 0 1 .2.2c0 1.808 1.958 2.939 3.524 2.034a.199.199 0 0 1 .271.073l.802 1.388a.199.199 0 0 1-.073.272c-1.566.904-1.566 3.164 0 4.069a.199.199 0 0 1 .073.271l-.802 1.388a.199.199 0 0 1-.271.073C10.958 10.863 9 11.993 9 13.8a.2.2 0 0 1-.199.2H7.2a.199.199 0 0 1-.2-.2c0-1.808-1.958-2.938-3.524-2.034a.199.199 0 0 1-.272-.073l-.8-1.388a.199.199 0 0 1 .072-.271c1.566-.905 1.566-3.165 0-4.07a.199.199 0 0 1-.073-.271l.801-1.388a.199.199 0 0 1 .272-.073C5.042 5.138 7 4.007 7 2.2c0-.11.089-.199.199-.199ZM5.5 2.2c0-.94.76-1.7 1.699-1.7H8.8c.94 0 1.7.76 1.7 1.7a.85.85 0 0 0 1.274.735a1.699 1.699 0 0 1 2.32.622l.802 1.388c.469.813.19 1.851-.622 2.32a.85.85 0 0 0 0 1.472a1.7 1.7 0 0 1 .622 2.32l-.802 1.388a1.699 1.699 0 0 1-2.32.622a.85.85 0 0 0-1.274.735c0 .939-.76 1.7-1.699 1.7H7.2a1.7 1.7 0 0 1-1.699-1.7a.85.85 0 0 0-1.274-.735a1.698 1.698 0 0 1-2.32-.622l-.802-1.388a1.699 1.699 0 0 1 .622-2.32a.85.85 0 0 0 0-1.471a1.699 1.699 0 0 1-.622-2.321l.801-1.388a1.699 1.699 0 0 1 2.32-.622A.85.85 0 0 0 5.5 2.2m4 5.8a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M11 8a3 3 0 1 1-6 0a3 3 0 0 1 6 0"
+                              clipRule="evenodd"
+                            />
+                          </g>
+                          <defs>
+                            <clipPath id="gravityUiGear0">
+                              <path fill="#000000" d="M0 0h16v16H0z" />
+                            </clipPath>
+                          </defs>
+                        </g>
+                      </svg>
+                    </button>
+                  )}
                 </SignedIn>
               </>
             ) : (
@@ -208,6 +244,16 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
                         <UserButton.UserProfilePage label="account" />
                         <UserButton.UserProfilePage label="security" />
                       </UserButton>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          aria-label="Abrir admin"
+                          onClick={() => { setAdminOpen(true); closeMenu(); }}
+                          className="mt-2 inline-flex items-center justify-center w-full rounded-md border border-white/20 text-white/80 hover:bg-white/5 px-3 py-2"
+                        >
+                          <span className="mr-2">⚙</span> Admin
+                        </button>
+                      )}
                     </div>
                   </SignedIn>
                 </>
@@ -220,6 +266,20 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
           </div>
         </div>
       </div>
+      {adminOpen && (
+        <div className="fixed inset-0 z-[120]">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={() => setAdminOpen(false)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-7xl h-[88vh] rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border overflow-hidden">
+              <button aria-label="Cerrar" onClick={() => setAdminOpen(false)} className="pixel-close-btn -top-5 -right-5 z-20"><span className="btn-face" /></button>
+              <div className="p-4 sm:p-6 h-full overflow-auto">
+                <h3 className="text-white font-bold smooth-font mb-4">Administración</h3>
+                <AdminPanel />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,10 +21,18 @@ export async function POST(req: NextRequest) {
     const stripe = new Stripe(secret);
 
     const pid = planId.toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
-    const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
-    const priceId = (process.env as Record<string, string | undefined>)[key];
+    let priceId: string | undefined;
+    try {
+      const cfg = await (await import('@/lib/prisma')).prisma.planConfig.findUnique({ where: { planId: planId.toString().toLowerCase() } });
+      priceId = billingCycle === 'yearly' ? (cfg?.priceYearlyId || undefined) : (cfg?.priceMonthlyId || undefined);
+    } catch {}
     if (!priceId) {
-      return new Response(JSON.stringify({ error: `Falta configurar ${key}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
+      priceId = (process.env as Record<string, string | undefined>)[key];
+    }
+    if (!priceId) {
+      const msgKey = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}`;
+      return new Response(JSON.stringify({ error: `Falta configurar ${msgKey}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     const url = new URL(req.url);
@@ -43,6 +51,9 @@ export async function POST(req: NextRequest) {
       if (ensured) customer = ensured;
     }
 
+    const lower = planId.toString().toLowerCase();
+    const trialDays = lower === 'apprentice' ? 7 : lower === 'mage' ? 14 : 0;
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       ui_mode: 'embedded',
       mode: 'subscription',
@@ -52,6 +63,7 @@ export async function POST(req: NextRequest) {
       // Require a billing address to reliably determine location for Automatic Tax
       billing_address_collection: 'required',
       tax_id_collection: { enabled: true },
+      subscription_data: trialDays > 0 ? { trial_period_days: trialDays, trial_settings: { end_behavior: { missing_payment_method: 'cancel' } } } : undefined,
       customer_update: { address: 'auto', name: 'auto' },
       return_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       metadata: { planId, billingCycle },

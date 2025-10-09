@@ -31,9 +31,7 @@ export default function DockPlanCard({ plan, yearly, onSubscribeAction }: { plan
       <div>
         <div className="text-white text-xl font-semibold smooth-font">{plan.name}</div>
         <div className="text-white/70 text-sm smooth-font mt-1">
-          {plan.id === "apprentice" && "Perfecto para 1 solución"}
-          {plan.id === "mage" && "Para negocios en crecimiento"}
-          {plan.id === "archmage" && "Todas las apps + funciones avanzadas"}
+          {plan.subtitle || (plan.id === 'apprentice' ? 'Perfecto para 1 solución' : plan.id === 'mage' ? 'Para negocios en crecimiento' : plan.id === 'archmage' ? 'Todas las apps + funciones avanzadas' : '')}
         </div>
         <div className="mt-5">
           <div className="text-4xl font-extrabold text-white smooth-font">
