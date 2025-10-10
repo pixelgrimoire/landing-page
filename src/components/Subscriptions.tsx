@@ -5,7 +5,7 @@ import MagicPlanCard from '@/components/MagicPlanCard';
 import DockPlanCard from '@/components/DockPlanCard';
 import ElementsCheckoutModal from '@/components/ElementsCheckoutModal';
 import AuthGateModal from '@/components/AuthGateModal';
-import { PLANS, type Plan } from '@/lib/constants';
+import type { Plan } from '@/lib/types';
 import { useUser } from '@clerk/nextjs';
 
 export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: boolean }) {
@@ -54,9 +54,9 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
           }));
           setPlans(mapped);
         } else {
-          setPlans(PLANS);
+          setPlans([]);
         }
-      } catch { setPlans(PLANS); }
+      } catch { setPlans([]); }
     })();
     return () => { alive = false; };
   }, []);
@@ -85,21 +85,42 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
           </div>
         </div>
 
-        <div className="relative grid md:grid-cols-3 gap-6 mt-10">
-          {(plans || PLANS).map((p) => (
-            magicEnabled ? (
-              <MagicPlanCard key={p.id} plan={p} yearly={yearly} onSubscribeAction={subscribe} />
-            ) : (
-              <DockPlanCard key={p.id} plan={p} yearly={yearly} onSubscribeAction={subscribe} />
-            )
-          ))}
-        </div>
+        {plans === null ? (
+          <div className="relative grid md:grid-cols-3 gap-6 mt-10">
+            {[0,1,2].map(i => (
+              <div key={i} className="relative h-64 rounded-2xl border border-white/10 bg-white/[.03] animate-pulse p-6">
+                <div className="h-4 w-24 bg-white/10 rounded"/>
+                <div className="mt-3 h-8 w-40 bg-white/10 rounded"/>
+                <div className="mt-2 h-3 w-56 bg-white/10 rounded"/>
+                <div className="mt-6 space-y-2">
+                  <div className="h-3 w-full bg-white/10 rounded"/>
+                  <div className="h-3 w-5/6 bg-white/10 rounded"/>
+                  <div className="h-3 w-2/3 bg-white/10 rounded"/>
+                </div>
+                <div className="absolute bottom-6 left-6 right-6 h-9 bg-white/10 rounded"/>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="relative grid md:grid-cols-3 gap-6 mt-10">
+            {plans.map((p) => (
+              magicEnabled ? (
+                <MagicPlanCard key={p.id} plan={p} yearly={yearly} onSubscribeAction={subscribe} />
+              ) : (
+                <DockPlanCard key={p.id} plan={p} yearly={yearly} onSubscribeAction={subscribe} />
+              )
+            ))}
+          </div>
+        )}
+        {(plans && plans.length === 0) && (
+          <div className="text-center text-white/60 text-sm mt-6 smooth-font">Pronto añadiremos planes aquí.</div>
+        )}
         <div className="text-center text-white/60 text-sm mt-6 smooth-font">Sin contratos. Cancela en cualquier momento.</div>
         {/* Modal mount: custom Elements flow (preferred) */}
         <ElementsCheckoutModal
           open={checkoutOpen}
           onClose={()=> setCheckoutOpen(false)}
-          planId={selectedPlan?.id || 'apprentice'}
+          planId={selectedPlan?.id ?? ''}
           cycle={yearly ? 'yearly' : 'monthly'}
         />
         <AuthGateModal
@@ -111,3 +132,4 @@ export default function Subscriptions({ magicEnabled = true }: { magicEnabled?: 
     </section>
   );
 }
+

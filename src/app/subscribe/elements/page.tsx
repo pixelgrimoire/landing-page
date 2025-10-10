@@ -148,7 +148,9 @@ function ElementsInner() {
 
   const createSession = useCallback(async (opts?: { promo?: string }) => {
     if (!stripePromise) { setError('Stripe publishable key missing'); return; }
-    const planId = (searchParams.get('plan') || 'apprentice').toString();
+    const plan = searchParams.get('plan');
+    if (!plan) { setError('Falta plan en la URL. Vuelve a la sección de precios.'); return; }
+    const planId = plan.toString();
     const billingCycle = (searchParams.get('cycle') === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
     setPlanIdLabel(toTitle(planId));
     setBillingCycleLabel(billingCycle === 'yearly' ? 'Anual' : 'Mensual');

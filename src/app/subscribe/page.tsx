@@ -26,7 +26,9 @@ function SubscribeInner() {
 
   async function startRedirectCheckout() {
     try {
-      const planId = (searchParams.get('plan') || 'apprentice').toString();
+      const plan = searchParams.get('plan');
+      if (!plan) { setError('Falta plan en la URL. Vuelve a la sección de precios.'); return; }
+      const planId = plan.toString();
       const billingCycle = (searchParams.get('cycle') === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
       const res = await fetch('/api/checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -47,7 +49,9 @@ function SubscribeInner() {
       initializingRef.current = true;
       try {
         if (!stripeP) { setError('Stripe publishable key missing'); return; }
-        const planId = (searchParams.get('plan') || 'apprentice').toString();
+        const plan = searchParams.get('plan');
+        if (!plan) { setError('Falta plan en la URL. Vuelve a la sección de precios.'); return; }
+        const planId = plan.toString();
         const billingCycle = (searchParams.get('cycle') === 'monthly' ? 'monthly' : 'yearly') as 'monthly'|'yearly';
         setLoading(true);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties as ReactCSSProperties } from 'react';
-import type { Plan } from '@/lib/constants';
+import type { Plan } from '@/lib/types';
 import type { CSSGlowVars } from '@/lib/utils';
 
 export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { plan: Plan; yearly: boolean; onSubscribeAction: (p: Plan) => void }) {
@@ -50,14 +50,8 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
   const cardStyle: CSSGlowVars = { '--glow': plan.color } as CSSGlowVars;
   const comingSoon = !!plan.comingSoon;
   const primaryCta = `Conjurar nivel ${plan.name}`;
-  const secondaryCta = comingSoon
-    ? 'Próximamente'
-    : plan.id === 'apprentice'
-    ? 'Prueba gratis 7 días'
-    : plan.id === 'mage'
-    ? 'Comenzar prueba 14 días'
-    : 'Solicitar demo personalizada';
-  const secondaryDisabled = comingSoon || plan.id === 'archmage';
+  const secondaryCta = comingSoon ? 'Próximamente' : 'Conocer más';
+  const secondaryDisabled = comingSoon;
   const saving = 'Ahorra 20% pagando anual';
 
   return (
@@ -90,9 +84,7 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
               )}
             </div>
             {/* Subtítulo */}
-            <div className="text-white/70 text-xs sm:text-sm smooth-font mt-1">
-              {plan.subtitle || (plan.id === 'apprentice' ? 'Perfecto para 1 solución' : plan.id === 'mage' ? 'Para negocios en crecimiento' : plan.id === 'archmage' ? 'Todas las apps + funciones avanzadas' : '')}
-            </div>
+            <div className="text-white/70 text-xs sm:text-sm smooth-font mt-1">{plan.subtitle || ''}</div>
             <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${priceM}<span className="text-base text-white/60"> USD/mes</span></div>
             {/* Lista con checks como Dock */}
             <ul className="mt-4 space-y-2 text-white/85 text-sm smooth-font">
@@ -147,9 +139,7 @@ export default function MagicPlanCard({ plan, yearly, onSubscribeAction }: { pla
                 plan.popular && <span className="text-[10px] px-2 py-1 rounded bg-yellow-400 text-black pixel-font">Más popular</span>
               )}
             </div>
-            <div className="text-white/70 text-xs sm:text-sm smooth-font mt-1">
-              {plan.subtitle || (plan.id === 'apprentice' ? 'Perfecto para 1 solución' : plan.id === 'mage' ? 'Para negocios en crecimiento' : plan.id === 'archmage' ? 'Todas las apps + funciones avanzadas' : '')}
-            </div>
+            <div className="text-white/70 text-xs sm:text-sm smooth-font mt-1">{plan.subtitle || ''}</div>
             <div className="mt-3 text-3xl text-white font-extrabold smooth-font">${priceY}<span className="text-base text-white/60"> USD/año</span></div>
             <div className="text-emerald-400 text-xs sm:text-sm mt-1 smooth-font">{saving}</div>
             <ul className="mt-4 space-y-2 text-white/85 text-sm smooth-font">

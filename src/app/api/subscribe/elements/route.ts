@@ -35,19 +35,13 @@ export async function POST(req: NextRequest) {
 
   const stripe = new Stripe(secret);
 
-    const pid = planId.toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
     let priceId: string | undefined;
     try {
       const cfg = await (await import('@/lib/prisma')).prisma.planConfig.findUnique({ where: { planId: planId.toString().toLowerCase() } });
       priceId = billingCycle === 'yearly' ? (cfg?.priceYearlyId || undefined) : (cfg?.priceMonthlyId || undefined);
     } catch {}
     if (!priceId) {
-      const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
-      priceId = (process.env as Record<string, string | undefined>)[key];
-    }
-    if (!priceId) {
-      const msgKey = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}`;
-      return new Response(JSON.stringify({ error: `Falta configurar ${msgKey}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Falta configurar el precio del plan en la base de datos' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Determine or create customer
@@ -110,9 +104,12 @@ export async function POST(req: NextRequest) {
       }
     } catch {}
 
-    // Trial mapping per plan
-    const planUpper = planId.toString().toLowerCase();
-    const trialDays = planUpper === 'apprentice' ? 7 : planUpper === 'mage' ? 14 : 0;
+    // Trial mapping per plan from DB
+    let trialDays = 0;
+    try {
+      const cfg = await (await import('@/lib/prisma')).prisma.planConfig.findUnique({ where: { planId: planId.toString().toLowerCase() } });
+      trialDays = cfg?.trialDays ?? 0;
+    } catch {}
 
     // Create subscription in incomplete state to collect payment via Payment Element
     const subscription = await stripe.subscriptions.create({

@@ -23,20 +23,12 @@ export async function POST(req: NextRequest) {
 
     const stripe = new Stripe(secret);
 
-    // Mapear planId + ciclo a un Price ID vía env, ej.: STRIPE_PRICE_APPRENTICE_M / STRIPE_PRICE_APPRENTICE_Y
-    const pid = planId.toString().replace(/[^a-z0-9]/gi, '').toUpperCase();
-    let priceId: string | undefined;
-    try {
-      const cfg = await (await import('@/lib/prisma')).prisma.planConfig.findUnique({ where: { planId: planId.toString().toLowerCase() } });
-      priceId = billingCycle === 'yearly' ? (cfg?.priceYearlyId || undefined) : (cfg?.priceMonthlyId || undefined);
-    } catch {}
+    // Resolver precio y trial desde la base de datos (PlanConfig)
+    const planLower = planId.toString().toLowerCase();
+    const cfg = await prisma.planConfig.findUnique({ where: { planId: planLower } });
+    const priceId = billingCycle === 'yearly' ? (cfg?.priceYearlyId || undefined) : (cfg?.priceMonthlyId || undefined);
     if (!priceId) {
-      const key = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}` as const;
-      priceId = (process.env as Record<string, string | undefined>)[key];
-    }
-    if (!priceId) {
-      const msgKey = `STRIPE_PRICE_${pid}_${billingCycle === 'yearly' ? 'Y' : 'M'}`;
-      return new Response(JSON.stringify({ error: `Falta configurar ${msgKey}` }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Falta configurar el precio del plan en la base de datos' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 
     const url = new URL(req.url);
@@ -69,9 +61,8 @@ export async function POST(req: NextRequest) {
       await prisma.claimToken.create({ data: { tokenHash, email: (email && email.includes('@')) ? email : undefined, expiresAt } });
     }
 
-    // Trial mapping by plan
-    const pidLower = planId.toString().toLowerCase();
-    const trialDays = pidLower === 'apprentice' ? 7 : pidLower === 'mage' ? 14 : 0;
+    // Trial days desde DB
+    const trialDays = cfg?.trialDays ?? 0;
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',

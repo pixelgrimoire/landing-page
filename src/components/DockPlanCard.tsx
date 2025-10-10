@@ -1,6 +1,6 @@
 "use client";
 
-import type { Plan } from "@/lib/constants";
+import type { Plan } from "@/lib/types";
 
 export default function DockPlanCard({ plan, yearly, onSubscribeAction }: { plan: Plan; yearly: boolean; onSubscribeAction: (p: Plan) => void }) {
   const price = yearly ? plan.priceY : plan.priceM;
@@ -9,14 +9,8 @@ export default function DockPlanCard({ plan, yearly, onSubscribeAction }: { plan
   const comingSoon = !!plan.comingSoon;
 
   const primaryCta = `Conjurar nivel ${plan.name}`;
-  const secondaryCta = comingSoon
-    ? "Próximamente"
-    : plan.id === "apprentice"
-    ? "Prueba gratis 7 días"
-    : plan.id === "mage"
-    ? "Comenzar prueba 14 días"
-    : "Solicitar demo personalizada";
-  const secondaryDisabled = comingSoon || plan.id === "archmage";
+  const secondaryCta = comingSoon ? "Próximamente" : "Conocer más";
+  const secondaryDisabled = comingSoon;
 
   return (
     <div className={`relative h-full rounded-2xl border bg-white/[.03] shadow-xl p-6 flex flex-col justify-between ${plan.popular ? 'border-emerald-500/70 ring-1 ring-emerald-500/40' : 'border-white/10'}`}>
@@ -30,9 +24,7 @@ export default function DockPlanCard({ plan, yearly, onSubscribeAction }: { plan
 
       <div>
         <div className="text-white text-xl font-semibold smooth-font">{plan.name}</div>
-        <div className="text-white/70 text-sm smooth-font mt-1">
-          {plan.subtitle || (plan.id === 'apprentice' ? 'Perfecto para 1 solución' : plan.id === 'mage' ? 'Para negocios en crecimiento' : plan.id === 'archmage' ? 'Todas las apps + funciones avanzadas' : '')}
-        </div>
+        <div className="text-white/70 text-sm smooth-font mt-1">{plan.subtitle || ''}</div>
         <div className="mt-5">
           <div className="text-4xl font-extrabold text-white smooth-font">
             ${price}

@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/health(.*)',
   '/api/stripe/webhook',
   '/api/subscribe(.*)',
+  '/api/plans(.*)',
   '/api/entitlements(.*)',
   // Note: project selection endpoints are not public; keep them protected
   '/_next/image(.*)',

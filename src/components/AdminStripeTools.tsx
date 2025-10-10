@@ -14,8 +14,8 @@ export default function AdminStripeTools() {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<PlanRow | null>(null);
 
-  const [planId, setPlanId] = useState("apprentice");
-  const [name, setName] = useState("Apprentice");
+  const [planId, setPlanId] = useState("");
+  const [name, setName] = useState("");
   const [productDesc, setProductDesc] = useState<string>("");
   const [productActive, setProductActive] = useState<boolean | null>(null);
   const [defaultPriceTarget, setDefaultPriceTarget] = useState<'none'|'monthly'|'yearly'>('none');
@@ -25,11 +25,11 @@ export default function AdminStripeTools() {
   const [comingSoon, setComingSoon] = useState(false);
   const [featuresText, setFeaturesText] = useState<string>("");
   const [currency, setCurrency] = useState("usd");
-  const [amountM, setAmountM] = useState<string>("15");
-  const [amountY, setAmountY] = useState<string>("144");
-  const [trial, setTrial] = useState<string>("7");
+  const [amountM, setAmountM] = useState<string>("");
+  const [amountY, setAmountY] = useState<string>("");
+  const [trial, setTrial] = useState<string>("0");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok?: boolean; error?: string; envM?: string | null; envY?: string | null } | null>(null);
+  const [result, setResult] = useState<{ ok?: boolean; error?: string; message?: string } | null>(null);
   const [previewM, setPreviewM] = useState<number>(0);
   const [previewY, setPreviewY] = useState<number>(0);
   const [previewYearly, setPreviewYearly] = useState(false);
@@ -69,12 +69,7 @@ export default function AdminStripeTools() {
       const res = await fetch('/api/admin/stripe/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Error');
-      const envM = data?.envKeys?.monthly || null;
-      const envY = data?.envKeys?.yearly || null;
-      setResult({ ok: true, envM, envY });
-      // Try copy to clipboard for convenience
-      const lines = [envM, envY].filter(Boolean).join('\n');
-      if (lines) { try { await navigator.clipboard.writeText(lines); } catch {} }
+      setResult({ ok: true, message: 'Plan creado y guardado en la base de datos.' });
     } catch (e: unknown) {
       setResult({ error: e instanceof Error ? e.message : 'Unknown error' });
     } finally {
@@ -192,10 +187,7 @@ export default function AdminStripeTools() {
                           }
                         } catch {}
                       }}>Editar</button>
-                      <button className="px-2 py-1 rounded-md border border-white/20 text-white/80 hover:bg-white/5" onClick={async()=>{
-                        const lines = [r.priceMonthlyId ? `STRIPE_PRICE_${r.planId.toUpperCase()}_M=${r.priceMonthlyId}` : null, r.priceYearlyId ? `STRIPE_PRICE_${r.planId.toUpperCase()}_Y=${r.priceYearlyId}` : null].filter(Boolean).join('\n');
-                        if (lines) { try { await navigator.clipboard.writeText(lines); } catch {} }
-                      }}>Copiar env</button>
+                      {/* Copiar env eliminado */}
                       <button className="px-2 py-1 rounded-md border border-red-400/40 text-red-300 hover:bg-red-500/10" onClick={async()=>{
                         const withArchive = confirm('¿Archivar también en Stripe (producto y precios) y borrar en DB?\nAceptar = Sí, Cancelar = solo DB');
                         const url = `/api/admin/plans?id=${encodeURIComponent(r.id)}&archiveStripe=${withArchive ? 'true' : 'false'}`;
@@ -309,7 +301,7 @@ export default function AdminStripeTools() {
             const res = await fetch('/api/admin/stripe/products', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const data = await res.json();
             if (!res.ok) throw new Error(data?.error || 'Error');
-            setResult({ ok: true, envM: data?.envKeys?.monthly || null, envY: data?.envKeys?.yearly || null });
+            setResult({ ok: true, message: 'Cambios guardados.' });
             refresh();
           } catch (e: unknown) { setResult({ error: e instanceof Error ? e.message : 'Unknown error' }); }
           finally { setBusy(false); }
@@ -334,15 +326,12 @@ export default function AdminStripeTools() {
         </div>
       )}
       {result?.ok && (
-        <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded p-2">
-          Listo. Copiado al portapapeles:
-          <pre className="mt-1 whitespace-pre-wrap break-all">{[result.envM, result.envY].filter(Boolean).join('\n')}</pre>
-        </div>
+        <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded p-2">{result.message || 'Listo.'}</div>
       )}
       {result?.error && (
         <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded p-2">{result.error}</div>
       )}
-      <div className="text-[11px] text-white/50">Solo admins (emails en <code>ADMIN_EMAILS</code>). Guarda las variables devueltas en tu <code>.env</code>.</div>
+      <div className="text-[11px] text-white/50">Solo admins (emails en <code>ADMIN_EMAILS</code>). La configuración se guarda en la base de datos.</div>
     </div>
   );
 }

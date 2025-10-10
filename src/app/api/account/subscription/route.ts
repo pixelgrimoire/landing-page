@@ -2,15 +2,15 @@ import type { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
-import { PLANS } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 
-function priceToPlanIdMap(): Record<string, string> {
+async function dbPriceToPlanIdMap(): Promise<Record<string, string>> {
   const map: Record<string, string> = {};
-  for (const [k, v] of Object.entries(process.env)) {
-    const m = k.match(/^STRIPE_PRICE_([A-Z0-9]+)_(M|Y)$/);
-    if (m && v) map[v] = m[1];
+  const rows = await prisma.planConfig.findMany();
+  for (const r of rows) {
+    if (r.priceMonthlyId) map[r.priceMonthlyId] = r.planId.toUpperCase();
+    if (r.priceYearlyId) map[r.priceYearlyId] = r.planId.toUpperCase();
   }
   return map;
 }
@@ -46,11 +46,16 @@ export async function GET(_req: NextRequest) {
 
     if (sub) {
       const item = await prisma.subscriptionItem.findFirst({ where: { subscriptionId: sub.id }, orderBy: { id: 'asc' } });
-      const map = priceToPlanIdMap();
+      const map = await dbPriceToPlanIdMap();
       const upper = item?.stripePriceId ? map[item.stripePriceId] : undefined;
       const planLower = upper ? upper.toLowerCase() : null;
       planId = planLower;
-      planLabel = planLower ? (PLANS.find(p => p.id === planLower)?.name || planLower) : null;
+      if (planLower) {
+        const cfg = await prisma.planConfig.findUnique({ where: { planId: planLower } });
+        planLabel = cfg?.name || planLower;
+      } else {
+        planLabel = null;
+      }
 
       // Fetch price interval from Stripe for accuracy
       try {
@@ -74,11 +79,16 @@ export async function GET(_req: NextRequest) {
           const prefer = list.data.find(s => ['active','trialing','past_due'].includes(s.status)) || list.data[0];
           if (prefer) {
             const pi = prefer.items.data[0]?.price?.id || undefined;
-            const map = priceToPlanIdMap();
+            const map = await dbPriceToPlanIdMap();
             const upper = pi ? map[pi] : undefined;
             const planLower = upper ? upper.toLowerCase() : null;
             planId = planLower;
-            planLabel = planLower ? (PLANS.find(p => p.id === planLower)?.name || planLower) : null;
+            if (planLower) {
+              const cfg = await prisma.planConfig.findUnique({ where: { planId: planLower } });
+              planLabel = cfg?.name || planLower;
+            } else {
+              planLabel = null;
+            }
             interval = (prefer.items.data[0]?.price?.recurring?.interval || null) as 'month'|'year'|null;
             const cpe = (prefer as Stripe.Subscription & { current_period_end?: number }).current_period_end;
             subData = {
