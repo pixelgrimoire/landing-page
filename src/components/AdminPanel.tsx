@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import AdminStripeTools from "@/components/AdminStripeTools";
+import AdminEntitlements from "@/components/AdminEntitlements";
+import AdminFeatured from "@/components/AdminFeatured";
 
-type Section = "plans" | "health" | "settings";
+type Section = "plans" | "entitlements" | "featured" | "health" | "settings";
 
 export default function AdminPanel() {
   const [section, setSection] = useState<Section>("plans");
@@ -18,6 +20,14 @@ export default function AdminPanel() {
             onClick={()=>setSection('plans')}
           >Planes</button>
           <button
+            className={`text-left px-3 py-2 rounded-md ${section==='entitlements' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'}`}
+            onClick={()=>setSection('entitlements')}
+          >Entitlements</button>
+          <button
+            className={`text-left px-3 py-2 rounded-md ${section==='featured' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'}`}
+            onClick={()=>setSection('featured')}
+          >Destacados</button>
+          <button
             className={`text-left px-3 py-2 rounded-md ${section==='health' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'}`}
             onClick={()=>setSection('health')}
           >Salud</button>
@@ -30,6 +40,18 @@ export default function AdminPanel() {
       <main className="min-h-[60vh] rounded-lg border border-white/10 bg-white/[.02] p-4">
         {section === 'plans' && (
           <AdminStripeTools />
+        )}
+        {section === 'entitlements' && (
+          <div className="text-white/80">
+            <div className="text-lg font-semibold mb-3">Entitlements por plan</div>
+            <AdminEntitlements />
+          </div>
+        )}
+        {section === 'featured' && (
+          <div className="text-white/80">
+            <div className="text-lg font-semibold mb-3">Proyectos Destacados</div>
+            <AdminFeatured />
+          </div>
         )}
         {section === 'health' && (
           <div className="text-white/80">
@@ -47,4 +69,3 @@ export default function AdminPanel() {
     </div>
   );
 }
-

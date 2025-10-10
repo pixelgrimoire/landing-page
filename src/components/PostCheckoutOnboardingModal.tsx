@@ -21,6 +21,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
   const [error, setError] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<string[]>([]);
   const [choices, setChoices] = useState<Record<string, string>>({});
+  const [allowedMap, setAllowedMap] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [cid, setCid] = useState<string | null>(customerId || null);
@@ -92,6 +93,12 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
         } else {
           setEntitlements([]);
         }
+        // Load allowed projects map (DB-driven)
+        try {
+          const r3 = await fetch('/api/entitlements/allowed', { cache: 'no-store' });
+          const d3 = await r3.json();
+          if (r3.ok && d3?.map) setAllowedMap(d3.map as Record<string, string[]>);
+        } catch {}
         setStep('projects');
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Error inesperado');
@@ -179,7 +186,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
                       <div key={code} className="bg-white/5 border border-white/10 rounded p-3">
                         <div className="text-sm text-white/70 mb-2">Entitlement: <span className="text-white">{code}</span></div>
                         <div className="grid grid-cols-2 gap-2">
-                          {PROJECTS.map(p => (
+                          {(allowedMap[code] ? PROJECTS.filter(p => allowedMap[code].includes(p.slug)) : PROJECTS).map(p => (
                             <button key={p.slug} onClick={() => setChoices(prev => ({ ...prev, [code]: p.slug }))} className={`px-3 py-2 rounded border ${choices[code]===p.slug ? 'border-yellow-400 bg-yellow-400/10 text-yellow-300' : 'border-white/10 bg-white/5 text-white/80 hover:bg-white/10'}`}>
                               {p.label}
                             </button>

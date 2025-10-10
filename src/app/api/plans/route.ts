@@ -22,7 +22,20 @@ export async function GET(_req: NextRequest) {
       });
     }
 
-    const rows = await prisma.planConfig.findMany({ orderBy: { createdAt: 'asc' } });
+    const rows = await prisma.planConfig.findMany({
+      orderBy: { createdAt: 'asc' },
+      select: {
+        planId: true,
+        name: true,
+        subtitle: true,
+        featuresJson: true,
+        priceMonthlyId: true,
+        priceYearlyId: true,
+        popular: true,
+        comingSoon: true,
+        color: true,
+      },
+    });
     if (!rows?.length) return new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const secret = process.env.STRIPE_SECRET_KEY;
     const stripe = secret ? new Stripe(secret) : null;
@@ -41,18 +54,18 @@ export async function GET(_req: NextRequest) {
         } catch {}
       }
       const features = r.featuresJson ? (JSON.parse(r.featuresJson) as string[]) : [];
-      return {
-        id: r.planId,
-        name: r.name,
-        subtitle: r.subtitle || '',
-        features,
-        // return in major units (USD)
-        priceM: priceM != null ? Math.round(priceM / 100) : null,
-        priceY: priceY != null ? Math.round(priceY / 100) : null,
-        popular: !!r.popular,
-        comingSoon: !!r.comingSoon,
-        color: r.color || '#ffffff',
-      };
+       return {
+         id: r.planId,
+         name: r.name,
+         subtitle: r.subtitle || '',
+         features,
+         // return in major units (USD)
+         priceM: priceM != null ? Math.round(priceM / 100) : null,
+         priceY: priceY != null ? Math.round(priceY / 100) : null,
+         popular: !!r.popular,
+         comingSoon: !!r.comingSoon,
+         color: r.color || '#ffffff',
+       };
     }));
     // Update cache
     CACHE = { ts: Date.now(), items };

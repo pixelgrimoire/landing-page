@@ -14,6 +14,10 @@ type ApiData = {
     planId: string | null;
     planLabel: string | null;
     interval: 'month'|'year'|null;
+    trialDays?: number | null;
+    graceDays?: number | null;
+    trialRemainingDays?: number | null;
+    graceRemainingDays?: number | null;
   } | null;
   entitlements: Array<{ code: string; currentPeriodEnd: string | null; status: string }>;
   selections: Selection[];
@@ -24,6 +28,7 @@ export default function SubscriptionAccountPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [allowedMap, setAllowedMap] = useState<Record<string, string[]>>({});
 
   const nextRenewal = useMemo(() => {
     const iso = data?.subscription?.currentPeriodEnd;
@@ -36,6 +41,14 @@ export default function SubscriptionAccountPage() {
     const ms = +nextRenewal - Date.now();
     return Math.max(0, Math.ceil(ms / (1000*60*60*24)));
   }, [nextRenewal]);
+
+  const trialRemaining = useMemo(() => {
+    return typeof data?.subscription?.trialRemainingDays === 'number' ? data.subscription.trialRemainingDays : (data?.subscription?.status === 'trialing' && daysToRenewal != null ? daysToRenewal : null);
+  }, [data?.subscription?.trialRemainingDays, data?.subscription?.status, daysToRenewal]);
+
+  const graceRemaining = useMemo(() => {
+    return typeof data?.subscription?.graceRemainingDays === 'number' ? data.subscription.graceRemainingDays : null;
+  }, [data?.subscription?.graceRemainingDays]);
 
   async function load() {
     setLoading(true); setError(null);
@@ -50,6 +63,11 @@ export default function SubscriptionAccountPage() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    (async () => {
+      try { const r = await fetch('/api/entitlements/allowed', { cache: 'no-store' }); const d = await r.json(); if (r.ok && d?.map) setAllowedMap(d.map as Record<string,string[]>); } catch {}
+    })();
+  }, []);
 
   const toggleCancel = async () => {
     if (!data?.subscription) return;
@@ -120,7 +138,14 @@ export default function SubscriptionAccountPage() {
               <div className="text-sm text-white/70">Plan</div>
               <div className="text-lg font-semibold">{data.subscription?.planLabel || '—'} {data.subscription?.interval ? `(${data.subscription.interval === 'year' ? 'Anual' : 'Mensual'})` : ''}</div>
               <div className="mt-2 text-sm text-white/70">Estado: <span className="text-white">{data.subscription?.status || '—'}</span></div>
-              <div className="mt-1 text-sm text-white/70">Próxima renovación: <span className="text-white">{nextRenewal ? nextRenewal.toLocaleDateString() : '—'}</span>{daysToRenewal!=null ? <span className="text-white/50"> {`(${daysToRenewal} días)`}</span> : null}</div>
+              {data.subscription?.status === 'trialing' ? (
+                <div className="mt-1 text-sm text-white/70">Prueba: <span className="text-white">{trialRemaining != null ? `${trialRemaining} días restantes` : '—'}</span>{nextRenewal ? <span className="text-white/50"> {`(termina el ${nextRenewal.toLocaleDateString()})`}</span> : null}</div>
+              ) : (
+                <div className="mt-1 text-sm text-white/70">Próxima renovación: <span className="text-white">{nextRenewal ? nextRenewal.toLocaleDateString() : '—'}</span>{daysToRenewal!=null ? <span className="text-white/50"> {`(${daysToRenewal} días)`}</span> : null}</div>
+              )}
+              {data.subscription?.status === 'past_due' && (
+                <div className="mt-1 text-sm text-yellow-300">Pago pendiente: gracia restante {graceRemaining != null ? `${graceRemaining} días` : '—'}</div>
+              )}
               <div className="mt-3">
                 <button onClick={toggleCancel} disabled={saving || !data.subscription} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold disabled:opacity-60">
                   {saving ? 'Guardando…' : (data.subscription?.cancelAtPeriodEnd ? 'Reanudar renovación' : 'Cancelar renovación')}
@@ -144,7 +169,7 @@ export default function SubscriptionAccountPage() {
                       <div className="text-sm text-white/70">Entitlement: <span className="text-white">{e.code}</span></div>
                       <div className="text-sm text-white/70 mb-2">Actual: <span className="text-white">{current}</span>{sel?.pendingProject ? <span className="text-white/60"> → Próximo: {sel.pendingProject}</span> : null}</div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {PROJECTS.map(p => (
+                        {(allowedMap[e.code] ? PROJECTS.filter(p => allowedMap[e.code].includes(p.slug)) : PROJECTS).map(p => (
                           <button key={p.slug} onClick={() => selectProject(e.code, p.slug)} disabled={disabled}
                             className={`px-3 py-2 rounded border ${current===p.slug ? 'border-yellow-400 bg-yellow-400/10 text-yellow-300' : 'border-white/10 bg-white/5 text-white/80 hover:bg-white/10'} disabled:opacity-60`}>
                             {p.label}

@@ -12,7 +12,11 @@
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
     "migrate:deploy": "prisma migrate deploy",
-    "migrate:status": "prisma migrate status"
+    "migrate:status": "prisma migrate status",
+    "wipe:db": "prisma db push --force-reset",
+    "wipe:stripe": "node scripts/wipe-stripe.mjs",
+    "wipe:clerk": "node scripts/wipe-clerk.mjs",
+    "wipe:clerk:all": "node scripts/wipe-clerk.mjs --include-admin"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.32.2",
@@ -21,6 +25,7 @@
     "@prisma/client": "^5.20.0",
     "@stripe/react-stripe-js": "^4.0.2",
     "@stripe/stripe-js": "^4.6.0",
+    "@vercel/blob": "^2.0.0",
     "gsap": "^3.13.0",
     "next": "15.5.2",
     "nodemailer": "^6.9.14",

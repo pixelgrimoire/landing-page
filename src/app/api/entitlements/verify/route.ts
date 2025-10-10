@@ -24,9 +24,29 @@ export async function POST(req: NextRequest) {
     const customerId = payload.customerId as string | undefined;
     if (!customerId) return new Response(JSON.stringify({ valid: false }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
-    // Cross-check entitlements from DB as source of truth
+    // Cross-check entitlements from DB as source of truth + apply grace by plan
     const activeEnts = await prisma.entitlement.findMany({ where: { customerId, status: { not: 'inactive' } } });
-    const entitlements = activeEnts.map(e => e.code);
+    // Build code -> graceDays map from PlanConfig
+    const plans = await prisma.planConfig.findMany({ select: { entitlementsJson: true, graceDays: true } });
+    const codeGrace = new Map<string, number>();
+    for (const p of plans) {
+      if (!p.entitlementsJson) continue;
+      try {
+        const arr = JSON.parse(p.entitlementsJson) as string[];
+        for (const c of arr) codeGrace.set(c, p.graceDays ?? 0);
+      } catch {}
+    }
+    const now = Date.now();
+    const entitlements = activeEnts.filter(e => {
+      const st = (e.status || '').toLowerCase();
+      if (st === 'active' || st === 'trialing') return true;
+      if (st === 'past_due') {
+        const g = codeGrace.get(e.code) ?? 0;
+        const end = e.currentPeriodEnd ? new Date(e.currentPeriodEnd).getTime() : 0;
+        if (end && now <= end + g * 24 * 60 * 60 * 1000) return true;
+      }
+      return false;
+    }).map(e => e.code);
 
     // If audience is expected, validate token 'aud' and current selection alignment
     if (expectedAud) {

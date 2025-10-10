@@ -15,6 +15,13 @@ export default function GlobalStyle() {
   return (
     <style>{`
       :root { --pg-ink:#0f0f1a; --pg-night:#0a0a14; --pg-violet:#6B21A8; --pg-blue:#2563EB; --pg-gold:#FACC15; }
+      /* Use dark-native form controls (affects select dropdown painting on Chromium/Edge) */
+      html { color-scheme: dark; }
+      /* Base dark styling for form controls */
+      select, input, textarea { background-color: rgba(255,255,255,.06); color:#e5e7eb; border:1px solid rgba(255,255,255,.12); }
+      select:focus, input:focus, textarea:focus { outline:none; box-shadow: 0 0 0 2px rgba(250,204,21,.35); }
+      /* Ensure dropdown options are readable on dark backgrounds */
+      select option { background-color: #0b1220; color: #e5e7eb; }
       .pixel-font { font-family:'Press Start 2P', monospace; }
       .smooth-font { font-family:'Inter', ui-sans-serif, system-ui; }
       .pixelated { image-rendering: pixelated; }

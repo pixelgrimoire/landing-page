@@ -17,7 +17,29 @@ async function ensureAdmin() {
 
 export async function GET() {
   const admin = await ensureAdmin(); if (!admin.ok) return new Response(JSON.stringify({ error: admin.error }), { status: admin.error === 'Unauthorized' ? 401 : 403, headers: { 'Content-Type': 'application/json' } });
-  const rows = await prisma.planConfig.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
+  const rows = await prisma.planConfig.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    select: {
+      id: true,
+      planId: true,
+      name: true,
+      subtitle: true,
+      color: true,
+      popular: true,
+      comingSoon: true,
+      featuresJson: true,
+      entitlementsJson: true,
+      entitlementProjectsJson: true,
+      currency: true,
+      priceMonthlyId: true,
+      priceYearlyId: true,
+      trialDays: true,
+      graceDays: true,
+      sortOrder: true,
+      createdAt: true,
+      stripeProductId: true,
+    },
+  });
   return new Response(JSON.stringify({ items: rows }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 

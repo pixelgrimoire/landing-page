@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
-import { mapPriceIdsToEntitlements, revokeAllEntitlementsForCustomer, upsertUserEntitlements } from '@/lib/entitlements';
+import { mapPriceIdsToEntitlementsDb, revokeAllEntitlementsForCustomer, upsertUserEntitlements } from '@/lib/entitlements';
 import { prisma } from '@/lib/prisma';
 import { hashToken } from '@/lib/tokens';
 import { sendEmail } from '@/lib/email';
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = String(sub.customer);
         const priceIds = sub.items.data.map((it) => it.price.id);
-        const entitlements = mapPriceIdsToEntitlements(priceIds);
+        const entitlements = await mapPriceIdsToEntitlementsDb(priceIds);
         const sx = sub as Stripe.Subscription & SubscriptionExtra;
         const currentPeriodEndSec = sx.current_period_end ?? sx.currentPeriodEnd ?? null;
         const cancelAtPeriodEnd = sx.cancel_at_period_end ?? sx.cancelAtPeriodEnd ?? false;

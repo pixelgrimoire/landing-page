@@ -10,3 +10,15 @@ export const PROJECTS: ProjectOption[] = [
   { slug: 'nexora', label: 'Nexora' },
   { slug: 'soja', label: 'Soja' },
 ];
+
+// Opcional: restringe qué proyectos se pueden elegir por entitlement.
+// Si un entitlement no aparece aquí, se mostrarán todos los proyectos por defecto.
+export const ENTITLEMENT_PROJECTS: Record<string, string[]> = {
+  // Todos los códigos "pos.*" apuntan a Qubito POS por defecto
+  'pos.basic': ['qubito'],
+  'pos.pro': ['qubito'],
+  'pos.enterprise': ['qubito'],
+  // Ejemplos para otras líneas de producto (ajusta según tu catálogo real)
+  // 'sas.basic': ['nexia', 'nexora'],
+  // 'sas.pro': ['nexia', 'nexora'],
+};

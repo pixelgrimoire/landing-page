@@ -93,7 +93,6 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
   const [planIdLabel, setPlanIdLabel] = useState('');
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
   const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
-  const [addrKey, setAddrKey] = useState(0);
   const [trialDays, setTrialDays] = useState<number | null>(null);
   
 
@@ -352,7 +351,6 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
                     <div className="pixel-border rounded-lg p-3">
                       <div className="mb-2 text-white/80 text-xs">Dirección de facturación</div>
                       <AddressElement
-                        key={addrKey}
                         options={{
                           mode: 'billing',
                           fields: { phone: 'never' },
@@ -362,12 +360,11 @@ function Inner({ planId, cycle, onClose }: { planId: string; cycle: 'monthly'|'y
                         onChange={(e: StripeAddressElementChangeEvent)=> {
                           const a = e?.value?.address;
                           const raw = a ? { line1: a.line1, line2: a.line2 ?? undefined, city: a.city, state: a.state, postal_code: a.postal_code, country: a.country } : undefined;
-                          const wasWeird = !!(raw && (!raw.line1 || raw.line1.trim() === '') && raw.line2);
                           const norm = normalizeAddress(raw);
                           setBillingAddress(norm);
-                          if (wasWeird) setAddrKey(k => k + 1); // remount to apply normalized defaultValues
                         }}
                       />
+                      <div className="mt-1 text-[11px] text-white/50">Si el autocompletado no trae el C.P., escríbelo manualmente.</div>
                     </div>
                   </div>
                   {/* Right: Summary + promo */}

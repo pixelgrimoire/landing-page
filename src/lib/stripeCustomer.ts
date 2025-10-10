@@ -9,18 +9,25 @@ type EnsureArgs = {
 };
 
 export async function ensureStripeCustomerForUser({ userId, email, name, currentCustomerId }: EnsureArgs): Promise<string | null> {
-  if (currentCustomerId) {
-    await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId: currentCustomerId } }).catch(() => undefined);
-    await prisma.customer.upsert({
-      where: { id: currentCustomerId },
-      update: { email: email ?? undefined, userId },
-      create: { id: currentCustomerId, email: email ?? undefined, userId },
-    });
-    return currentCustomerId;
-  }
-
   const stripe = getStripe();
   if (!stripe) return null;
+
+  // If caller provided an existing customer id, verify it belongs to this Stripe env.
+  if (currentCustomerId) {
+    try {
+      const c = await stripe.customers.retrieve(currentCustomerId);
+      // If we retrieved without throwing, assume valid and link it.
+      await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId: currentCustomerId } }).catch(() => undefined);
+      await prisma.customer.upsert({
+        where: { id: currentCustomerId },
+        update: { email: email ?? undefined, userId },
+        create: { id: currentCustomerId, email: email ?? undefined, userId },
+      });
+      return (c && typeof c === 'object') ? currentCustomerId : currentCustomerId;
+    } catch {
+      // Stale or mismatched (e.g., live vs test). Fall through to find/create.
+    }
+  }
 
   // Intenta encontrar por email primero (si está)
   let foundId: string | null = null;

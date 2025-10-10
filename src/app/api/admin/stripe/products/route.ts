@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     if (!secret) return new Response(JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
 
     const body = await req.json().catch(()=> ({}));
-    const { planId, name, currency = 'usd', amountMonthly, amountYearly, trialDays, subtitle, color, popular, comingSoon, features } = body as {
-      planId?: string; name?: string; currency?: string; amountMonthly?: number | string; amountYearly?: number | string; trialDays?: number; subtitle?: string | null; color?: string | null; popular?: boolean; comingSoon?: boolean; features?: string[] | string;
+    const { planId, name, currency = 'usd', amountMonthly, amountYearly, trialDays, graceDays, subtitle, color, popular, comingSoon, features, entitlements } = body as {
+      planId?: string; name?: string; currency?: string; amountMonthly?: number | string; amountYearly?: number | string; trialDays?: number; graceDays?: number; subtitle?: string | null; color?: string | null; popular?: boolean; comingSoon?: boolean; features?: string[] | string; entitlements?: string[] | string;
     };
     if (!planId || !name || (amountMonthly == null && amountYearly == null)) {
       return new Response(JSON.stringify({ error: 'Missing planId, name or amounts' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -58,18 +58,32 @@ export async function POST(req: NextRequest) {
     }
 
     const featuresJson = Array.isArray(features) ? JSON.stringify(features) : (typeof features === 'string' ? JSON.stringify(features.split('\n').map(s=>s.trim()).filter(Boolean)) : undefined);
+    const entitlementsJson = Array.isArray(entitlements) ? JSON.stringify(entitlements) : (typeof entitlements === 'string' ? JSON.stringify(entitlements.split('\n').map(s=>s.trim()).filter(Boolean)) : undefined);
+    // Optional mapping entitlement -> allowed project slugs
+    let entitlementProjectsJson: string | undefined = undefined;
+    if (typeof (body as any).entitlementProjects === 'object' && (body as any).entitlementProjects !== null) {
+      entitlementProjectsJson = JSON.stringify((body as any).entitlementProjects);
+    } else if (typeof (body as any).entitlementProjects === 'string') {
+      const txt = String((body as any).entitlementProjects);
+      const map: Record<string, string[]> = {};
+      for (const ln of txt.split('\n')) {
+        const line = ln.trim(); if (!line) continue;
+        const idx = line.indexOf('='); if (idx === -1) continue;
+        const code = line.slice(0, idx).trim();
+        const vals = line.slice(idx+1).split(',').map(s=>s.trim()).filter(Boolean);
+        if (code && vals.length) map[code] = vals;
+      }
+      entitlementProjectsJson = JSON.stringify(map);
+    }
     await prisma.planConfig.upsert({ where: { planId: lookupBase.toLowerCase() }, update: {
-      name, stripeProductId: product.id, priceMonthlyId: priceMonthlyId || undefined, priceYearlyId: priceYearlyId || undefined, currency, trialDays: typeof trialDays === 'number' ? trialDays : 0,
-      subtitle: subtitle ?? undefined, color: color ?? undefined, popular: !!popular, comingSoon: !!comingSoon, featuresJson: featuresJson ?? undefined,
+      name, stripeProductId: product.id, priceMonthlyId: priceMonthlyId || undefined, priceYearlyId: priceYearlyId || undefined, currency, trialDays: typeof trialDays === 'number' ? trialDays : 0, graceDays: typeof graceDays === 'number' ? graceDays : 3,
+      subtitle: subtitle ?? undefined, color: color ?? undefined, popular: !!popular, comingSoon: !!comingSoon, featuresJson: featuresJson ?? undefined, entitlementsJson: entitlementsJson ?? undefined, entitlementProjectsJson: entitlementProjectsJson ?? undefined,
     }, create: {
-      planId: lookupBase.toLowerCase(), name, stripeProductId: product.id, priceMonthlyId: priceMonthlyId || undefined, priceYearlyId: priceYearlyId || undefined, currency, trialDays: typeof trialDays === 'number' ? trialDays : 0,
-      subtitle: subtitle ?? undefined, color: color ?? undefined, popular: !!popular, comingSoon: !!comingSoon, featuresJson: featuresJson ?? undefined,
+      planId: lookupBase.toLowerCase(), name, stripeProductId: product.id, priceMonthlyId: priceMonthlyId || undefined, priceYearlyId: priceYearlyId || undefined, currency, trialDays: typeof trialDays === 'number' ? trialDays : 0, graceDays: typeof graceDays === 'number' ? graceDays : 3,
+      subtitle: subtitle ?? undefined, color: color ?? undefined, popular: !!popular, comingSoon: !!comingSoon, featuresJson: featuresJson ?? undefined, entitlementsJson: entitlementsJson ?? undefined, entitlementProjectsJson: entitlementProjectsJson ?? undefined,
     }});
 
-    return new Response(JSON.stringify({ ok: true, productId: product.id, priceMonthlyId, priceYearlyId, envKeys: {
-      monthly: priceMonthlyId ? `STRIPE_PRICE_${lookupBase}_M=${priceMonthlyId}` : null,
-      yearly: priceYearlyId ? `STRIPE_PRICE_${lookupBase}_Y=${priceYearlyId}` : null,
-    } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, productId: product.id, priceMonthlyId, priceYearlyId }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
@@ -85,7 +99,7 @@ export async function PUT(req: NextRequest) {
     const stripe = new Stripe(secret);
 
     const body = await req.json().catch(()=>({}));
-    const { planId, name, currency = 'usd', amountMonthly, amountYearly, trialDays, productActive, productDescription, defaultPriceTarget, subtitle, color, popular, comingSoon, features } = body as { planId?: string; name?: string; currency?: string; amountMonthly?: number; amountYearly?: number; trialDays?: number; productActive?: boolean; productDescription?: string | null; defaultPriceTarget?: 'monthly'|'yearly'|'none'; subtitle?: string | null; color?: string | null; popular?: boolean; comingSoon?: boolean; features?: string[] | string };
+    const { planId, name, currency = 'usd', amountMonthly, amountYearly, trialDays, graceDays, productActive, productDescription, defaultPriceTarget, subtitle, color, popular, comingSoon, features, entitlements } = body as { planId?: string; name?: string; currency?: string; amountMonthly?: number; amountYearly?: number; trialDays?: number; graceDays?: number; productActive?: boolean; productDescription?: string | null; defaultPriceTarget?: 'monthly'|'yearly'|'none'; subtitle?: string | null; color?: string | null; popular?: boolean; comingSoon?: boolean; features?: string[] | string; entitlements?: string[] | string };
     if (!planId) return new Response(JSON.stringify({ error: 'Missing planId' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
     const pid = planId.toString().toLowerCase();
@@ -114,10 +128,13 @@ export async function PUT(req: NextRequest) {
     }
 
     const featuresJson = Array.isArray(features) ? JSON.stringify(features) : (typeof features === 'string' ? JSON.stringify(features.split('\n').map(s=>s.trim()).filter(Boolean)) : undefined);
+    const entitlementsJson = Array.isArray(entitlements) ? JSON.stringify(entitlements) : (typeof entitlements === 'string' ? JSON.stringify(entitlements.split('\n').map(s=>s.trim()).filter(Boolean)) : undefined);
     const updated = await prisma.planConfig.update({ where: { planId: pid }, data: {
-      name: name || cfg.name, currency, trialDays: typeof trialDays === 'number' ? trialDays : cfg.trialDays, priceMonthlyId: priceMonthlyId || undefined, priceYearlyId: priceYearlyId || undefined,
+      name: name || cfg.name, currency, trialDays: typeof trialDays === 'number' ? trialDays : cfg.trialDays, graceDays: typeof graceDays === 'number' ? graceDays : cfg.graceDays,
+      priceMonthlyId: priceMonthlyId || undefined, priceYearlyId: priceYearlyId || undefined,
       subtitle: subtitle ?? cfg.subtitle ?? undefined, color: color ?? cfg.color ?? undefined, popular: typeof popular === 'boolean' ? popular : cfg.popular, comingSoon: typeof comingSoon === 'boolean' ? comingSoon : cfg.comingSoon,
       featuresJson: featuresJson ?? cfg.featuresJson ?? undefined,
+      entitlementsJson: entitlementsJson ?? cfg.entitlementsJson ?? undefined,
     }});
 
     // Optionally set default price to monthly/yearly (new or existing)
@@ -128,10 +145,7 @@ export async function PUT(req: NextRequest) {
       await stripe.products.update(cfg.stripeProductId, { default_price: (priceYearlyId || updated.priceYearlyId || undefined) as string });
     }
 
-    return new Response(JSON.stringify({ ok: true, envKeys: {
-      monthly: updated.priceMonthlyId ? `STRIPE_PRICE_${pid.toUpperCase()}_M=${updated.priceMonthlyId}` : null,
-      yearly: updated.priceYearlyId ? `STRIPE_PRICE_${pid.toUpperCase()}_Y=${updated.priceYearlyId}` : null,
-    } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ ok: true, productId: cfg.stripeProductId, priceMonthlyId: updated.priceMonthlyId || null, priceYearlyId: updated.priceYearlyId || null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });

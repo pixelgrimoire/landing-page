@@ -111,12 +111,11 @@ function ElementsInner() {
   const [price, setPrice] = useState<{ unit_amount: number | null; currency: string; interval: 'day'|'week'|'month'|'year' } | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
+  const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
   const [email, setEmail] = useState<string | undefined>(undefined);
   const [totals, setTotals] = useState<{ subtotal?: number; tax?: number; total?: number; discount?: number; currency?: string; lineDescription?: string } | null>(null);
   const [planIdLabel, setPlanIdLabel] = useState('');
   const [billingCycleLabel, setBillingCycleLabel] = useState('');
-  const [billingAddress, setBillingAddress] = useState<{ line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } | undefined>(undefined);
-  const [addrKey, setAddrKey] = useState(0);
   const nameFromUser = useMemo(() => (user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || undefined), [user?.fullName, user?.firstName, user?.lastName]);
 
   // Normalize address so line1 is always present
@@ -326,7 +325,6 @@ function ElementsInner() {
                         <div className="pixel-border rounded-lg p-3">
                           <div className="mb-2 text-white/80 text-xs">Dirección de facturación</div>
                           <AddressElement
-                            key={addrKey}
                             options={{
                               mode: 'billing',
                               fields: { phone: 'never' },
@@ -335,12 +333,11 @@ function ElementsInner() {
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             onChange={(e: any)=> {
                               const a = e?.value?.address || undefined;
-                              const wasWeird = !!(a && (!a.line1 || String(a.line1).trim() === '') && a.line2);
                               const norm = normalizeAddress(a);
                               setBillingAddress(norm);
-                              if (wasWeird) setAddrKey(k => k + 1);
                             }}
                           />
+                          <div className="mt-1 text-[11px] text-white/50">Si el autocompletado no trae el C.P., escríbelo manualmente.</div>
                         </div>
                         <CheckoutForm intentType={intentType} email={email} name={nameFromUser} address={billingAddress} />
                       </div>

@@ -124,12 +124,35 @@ model PlanConfig {
   priceYearlyId   String?
   currency        String?  @default("usd")
   trialDays       Int      @default(0)
+  graceDays       Int      @default(3)
   subtitle        String?
   color           String?
   popular         Boolean  @default(false)
   comingSoon      Boolean  @default(false)
   featuresJson    String?
+  entitlementsJson String?
+  entitlementProjectsJson String?
   sortOrder       Int      @default(100)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model FeaturedProject {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  subtitle  String?
+  summary   String?
+  thumbnailUrl String?
+  // Render kind: html | iframe | image | video | pdf | react
+  kind      String   @default("html")
+  // For iframe/image/video/pdf/html (Blob or external):
+  contentUrl String?
+  // For kind=react: a whitelisted component key or slug handled in the app
+  componentKey String?
+  html      String
+  active    Boolean  @default(true)
+  sortOrder Int      @default(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

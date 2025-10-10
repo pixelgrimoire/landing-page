@@ -1,32 +1,26 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRitualSummon } from "@/components/useRitualSummon";
 
 export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }) {
-  const items = [
-    {
-      title: 'Qubito POS',
-      desc: 'Demo en desarrollo: Punto de venta local‑first con licencia offline, UI moderna y gestión integral para negocios. (Ver demo)',
-      mockupUrl: '/POS-Qubito.html',
-      thumbnail: <>
-        <div className="h-16 flex items-center justify-center border-b border-slate-700">
-          <svg className="h-8 w-8 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               strokeWidth="1.5" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/>
-          </svg>
-          <span className="ml-3 text-2xl font-bold">Qubito POS</span>
-        </div>
-      </>
-    },
-  ];
+  const [items, setItems] = useState<Array<{ slug: string; title: string; subtitle?: string | null; summary?: string | null; thumbnailUrl?: string | null; kind?: string | null; contentUrl?: string | null }>>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/featured', { cache: 'no-store' });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data?.items)) setItems(data.items);
+        else setItems([]);
+      } catch { setItems([]); }
+    })();
+  }, []);
 
   const ritual = useRitualSummon({color: "#818cf8", durationMs: magicEnabled ? 2200 : 1, intensity: magicEnabled ? 1 : 0.8});
-  const [selected, setSelected] = useState<{ title: string; desc: string; mockupUrl?: string } | null>(null);
+  const [selected, setSelected] = useState<{ slug: string; title: string; desc?: string; kind?: string | null; contentUrl?: string | null } | null>(null);
   const [simpleOpen, setSimpleOpen] = useState(false);
 
-  const onCardClick = (it: { title: string; desc: string; mockupUrl?: string }) => {
+  const onCardClick = (it: { slug: string; title: string; summary?: string | null; kind?: string | null; contentUrl?: string | null }) => {
     setSelected(it);
     if (magicEnabled) {
       ritual.begin();
@@ -42,20 +36,18 @@ export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((it, i) => (
             <button
-              key={i}
-              onClick={() => onCardClick(it)}
+              key={it.slug}
+              onClick={() => onCardClick({ slug: it.slug, title: it.title, summary: it.summary || it.subtitle || '', kind: it.kind || 'html', contentUrl: it.contentUrl || null })}
               className="text-left glass border border-white/10 rounded-2xl p-6 pixel-border fade-up cursor-pointer hover:border-white/20 transition-colors"
               style={{ animationDelay: `${i * 90}ms` }}
             >
-              <div className="rounded-md mb-4 border border-white/10 overflow-hidden">
-                {it.thumbnail ? (
-                  it.thumbnail
-                ) : (
-                  <div className="h-28 bg-gradient-to-br from-blue-500/15 via-violet-600/15 to-yellow-400/15" />
-                )}
-              </div>
+              {it.thumbnailUrl ? (
+                <img src={it.thumbnailUrl} alt={it.title} className="rounded-md mb-4 border border-white/10 overflow-hidden h-28 w-full object-cover" />
+              ) : (
+                <div className="rounded-md mb-4 border border-white/10 overflow-hidden h-28 bg-gradient-to-br from-blue-500/15 via-violet-600/15 to-yellow-400/15" />
+              )}
               <div className="text-white font-semibold mb-1 smooth-font">{it.title}</div>
-              <div className="text-white/70 text-sm smooth-font">{it.desc}</div>
+              <div className="text-white/70 text-sm smooth-font">{it.summary || it.subtitle || ''}</div>
             </button>
           ))}
         </div>
@@ -64,17 +56,24 @@ export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }
       {/* Ritual modal */}
       {ritual.open && (
         <ritual.RitualPortal title={selected?.title ?? "Proyecto"}>
-          {selected?.mockupUrl ? (
+          {selected ? (
             <div style={{width: '100%', maxWidth: 1200, height: '70vh', margin: '0 auto'}}>
-              <iframe
-                src={selected.mockupUrl}
-                title="Demo Qubito POS"
-                style={{width: '100%', height: '100%', border: 'none', borderRadius: 12, background: '#f1f5f9'}}
-                allowFullScreen
-              />
+              {selected.kind === 'image' && selected.contentUrl ? (
+                <img src={selected.contentUrl} alt={selected.title} style={{width:'100%', height:'100%', objectFit:'contain', background:'#111827', borderRadius: 12}} />
+              ) : selected.kind === 'video' && selected.contentUrl ? (
+                <video src={selected.contentUrl} controls style={{width:'100%', height:'100%', background:'#111827', borderRadius: 12}} />
+              ) : selected.kind === 'pdf' && selected.contentUrl ? (
+                <iframe src={selected.contentUrl} title={selected.title} style={{width:'100%', height:'100%', border:'none', borderRadius:12, background:'#f1f5f9'}} />
+              ) : selected.kind === 'iframe' && selected.contentUrl ? (
+                <iframe src={selected.contentUrl} title={selected.title} style={{width:'100%', height:'100%', border:'none', borderRadius:12, background:'#f1f5f9'}} sandbox="allow-scripts allow-popups" />
+              ) : selected.kind === 'react' ? (
+                <iframe src={`/featured/app/${encodeURIComponent(selected.slug)}?cb=${Date.now()}`} title={selected.title} style={{width:'100%', height:'100%', border:'none', borderRadius:12, background:'#0b1220'}} />
+              ) : (
+                <iframe src={selected.contentUrl ? selected.contentUrl : (`/api/featured/view?slug=${encodeURIComponent(selected.slug)}&cb=${Date.now()}`)} title={selected.title} style={{width:'100%', height:'100%', border:'none', borderRadius:12, background:'#f1f5f9'}} />
+              )}
             </div>
           ) : (
-            <p className="text-zinc-300">{selected?.desc ?? "Detalle del proyecto"}</p>
+            <p className="text-zinc-300">Detalle del proyecto</p>
           )}
         </ritual.RitualPortal>
       )}
@@ -90,12 +89,12 @@ export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }
                 <button onClick={() => setSimpleOpen(false)} className="px-3 py-1 rounded-md border border-white/20 text-white/80 hover:bg-white/5">Cerrar</button>
               </div>
               <div className="p-0">
-                {selected?.mockupUrl ? (
+                {selected ? (
                   <div style={{width: '100%', maxWidth: 1200, height: '70vh', margin: '0 auto'}}>
-                    <iframe src={selected.mockupUrl} title={selected?.title || 'Demo'} style={{width: '100%', height: '100%', border: 'none', borderRadius: 12, background: '#f1f5f9'}} allowFullScreen />
+                    <iframe src={`/api/featured/view?slug=${encodeURIComponent(selected.slug)}&cb=${Date.now()}`} title={selected?.title || 'Demo'} style={{width: '100%', height: '100%', border: 'none', borderRadius: 12, background: '#f1f5f9'}} allowFullScreen />
                   </div>
                 ) : (
-                  <div className="p-4 text-zinc-300 smooth-font">{selected?.desc ?? 'Detalle del proyecto'}</div>
+                  <div className="p-4 text-zinc-300 smooth-font">Detalle del proyecto</div>
                 )}
               </div>
             </div>

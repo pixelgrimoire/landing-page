@@ -6,7 +6,7 @@ import MagicPlanCard from "@/components/MagicPlanCard";
 
 type View = 'table' | 'create' | 'edit';
 
-type PlanRow = { id: string; planId: string; name: string; subtitle?: string | null; color?: string | null; popular?: boolean; comingSoon?: boolean; featuresJson?: string | null; currency: string | null; priceMonthlyId: string | null; priceYearlyId: string | null; trialDays: number; sortOrder?: number | null; createdAt: string; stripeProductId?: string | null };
+type PlanRow = { id: string; planId: string; name: string; subtitle?: string | null; color?: string | null; popular?: boolean; comingSoon?: boolean; featuresJson?: string | null; entitlementsJson?: string | null; currency: string | null; priceMonthlyId: string | null; priceYearlyId: string | null; trialDays: number; graceDays: number; sortOrder?: number | null; createdAt: string; stripeProductId?: string | null };
 
 export default function AdminStripeTools() {
   const [view, setView] = useState<View>('table');
@@ -24,10 +24,12 @@ export default function AdminStripeTools() {
   const [popular, setPopular] = useState(false);
   const [comingSoon, setComingSoon] = useState(false);
   const [featuresText, setFeaturesText] = useState<string>("");
+  const [entitlementsText, setEntitlementsText] = useState<string>("");
   const [currency, setCurrency] = useState("usd");
   const [amountM, setAmountM] = useState<string>("");
   const [amountY, setAmountY] = useState<string>("");
   const [trial, setTrial] = useState<string>("0");
+  const [grace, setGrace] = useState<string>("3");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok?: boolean; error?: string; message?: string } | null>(null);
   const [previewM, setPreviewM] = useState<number>(0);
@@ -63,8 +65,10 @@ export default function AdminStripeTools() {
         amountMonthly: amountM ? Number(amountM) : undefined,
         amountYearly: amountY ? Number(amountY) : undefined,
         trialDays: trial ? Number(trial) : 0,
+        graceDays: grace ? Number(grace) : 3,
         subtitle, color, popular, comingSoon,
         features: featuresText.split('\n').map(s=>s.trim()).filter(Boolean),
+        entitlements: entitlementsText.split('\n').map(s=>s.trim()).filter(Boolean),
       };
       const res = await fetch('/api/admin/stripe/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
@@ -97,13 +101,14 @@ export default function AdminStripeTools() {
                 <th className="text-left p-2">Price M</th>
                 <th className="text-left p-2">Price Y</th>
                 <th className="text-left p-2">Trial</th>
+                <th className="text-left p-2">Gracia</th>
                 <th className="text-left p-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {loading && (<tr><td className="p-2 text-white/60" colSpan={7}>Cargando…</td></tr>)}
+              {loading && (<tr><td className="p-2 text-white/60" colSpan={8}>Cargando…</td></tr>)}
               {!loading && (!list || list.length === 0) && (
-                <tr><td className="p-2 text-white/60" colSpan={7}>Sin registros. Crea un nuevo plan.</td></tr>
+                <tr><td className="p-2 text-white/60" colSpan={8}>Sin registros. Crea un nuevo plan.</td></tr>
               )}
               {list?.map((r, i) => (
                 <tr key={r.id} draggable onDragStart={()=> setDragIndex(i)} onDragOver={(e)=> e.preventDefault()} onDrop={async()=>{
@@ -129,6 +134,7 @@ export default function AdminStripeTools() {
                   <td className="p-2 font-mono text-xs break-all">{r.priceMonthlyId || '—'}</td>
                   <td className="p-2 font-mono text-xs break-all">{r.priceYearlyId || '—'}</td>
                   <td className="p-2">{r.trialDays}d</td>
+                  <td className="p-2">{(r as PlanRow).graceDays}d</td>
                   <td className="p-2">
                     <div className="flex gap-2">
                       <button className="px-2 py-1 rounded-md border border-white/20 text-white/80 hover:bg-white/5" onClick={async()=>{
@@ -149,6 +155,7 @@ export default function AdminStripeTools() {
                         setName(r.name);
                         setCurrency(r.currency || 'usd');
                         setTrial(String(r.trialDays || 0));
+                        setGrace(String((r as PlanRow).graceDays || 3));
                         setAmountM('');
                         setAmountY('');
                         setResult(null);
@@ -163,6 +170,10 @@ export default function AdminStripeTools() {
                           const arr = r.featuresJson ? JSON.parse(r.featuresJson) as string[] : [];
                           setFeaturesText(arr.join('\n'));
                         } catch { setFeaturesText(''); }
+                        try {
+                          const arrE = r.entitlementsJson ? JSON.parse(r.entitlementsJson) as string[] : [];
+                          setEntitlementsText(arrE.join('\n'));
+                        } catch { setEntitlementsText(''); }
                         if (r.stripeProductId) {
                           try {
                           const res = await fetch(`/api/admin/stripe/products?id=${encodeURIComponent(r.stripeProductId)}`);
@@ -257,8 +268,14 @@ export default function AdminStripeTools() {
         <label className="text-xs">Trial (días)
           <input value={trial} onChange={e=>setTrial(e.target.value)} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />
         </label>
+        <label className="text-xs">Gracia (días)
+          <input value={grace} onChange={e=>setGrace(e.target.value)} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />
+        </label>
         <label className="text-xs col-span-2">Features (una por línea)
           <textarea value={featuresText} onChange={e=>setFeaturesText(e.target.value)} rows={4} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />
+        </label>
+        <label className="text-xs col-span-2">Entitlements (códigos, uno por línea)
+          <textarea value={entitlementsText} onChange={e=>setEntitlementsText(e.target.value)} rows={3} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" placeholder="pos.basic\nsas.pro" />
         </label>
         <label className="text-xs">Mensual (USD)
           <input value={amountM} onChange={e=>setAmountM(e.target.value)} placeholder={view==='edit' ? 'Dejar vacío para conservar' : ''} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />
@@ -292,7 +309,8 @@ export default function AdminStripeTools() {
           setBusy(true); setResult(null);
           try {
             const featuresArr = featuresText.split('\n').map(s=>s.trim()).filter(Boolean);
-            const body: Record<string, unknown> = { planId, name, currency, trialDays: Number(trial) || 0, subtitle, color, popular, comingSoon, features: featuresArr };
+            const entArr = entitlementsText.split('\n').map(s=>s.trim()).filter(Boolean);
+            const body: Record<string, unknown> = { planId, name, currency, trialDays: Number(trial) || 0, graceDays: Number(grace) || 3, subtitle, color, popular, comingSoon, features: featuresArr, entitlements: entArr };
             if (amountM) body.amountMonthly = Number(amountM);
             if (amountY) body.amountYearly = Number(amountY);
             if (productActive !== null) body.productActive = productActive;
