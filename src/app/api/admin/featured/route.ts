@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
   try {
     const adm = await ensureAdmin(); if (!adm.ok) return new Response(JSON.stringify({ error: adm.error }), { status: adm.status, headers: { 'Content-Type': 'application/json' } });
     const body = await req.json().catch(()=>({}));
-    let { id, slug, title, subtitle, summary, html, thumbnailUrl, kind, contentUrl, componentKey, active, sortOrder } = body as { id?: string; slug?: string; title?: string; subtitle?: string | null; summary?: string | null; html?: string; thumbnailUrl?: string | null; kind?: string; contentUrl?: string | null; componentKey?: string | null; active?: boolean; sortOrder?: number };
+    const { id, title, subtitle, summary, html, thumbnailUrl, thumbnailHtml, kind, contentUrl, componentKey, active } = body as { id?: string; title?: string; subtitle?: string | null; summary?: string | null; html?: string; thumbnailUrl?: string | null; thumbnailHtml?: string | null; kind?: string; contentUrl?: string | null; componentKey?: string | null; active?: boolean };
+    let { slug, sortOrder } = body as { slug?: string; sortOrder?: number };
     const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!slug && title) slug = slugify(String(title));
     if (!slug || !title) return new Response(JSON.stringify({ error: 'Missing slug or title' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
       summary: summary ?? null,
       html: html || '',
       thumbnailUrl: thumbnailUrl ?? null,
+      thumbnailHtml: thumbnailHtml ?? null,
       kind: finalKind,
       contentUrl: contentUrl ?? null,
       componentKey: componentKey ?? null,

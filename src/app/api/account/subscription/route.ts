@@ -32,11 +32,8 @@ export async function GET(_req: NextRequest) {
 
     // Entitlements and project selections
     let entitlements = await prisma.entitlement.findMany({ where: { customerId, status: { in: ['active', 'trialing', 'past_due'] } }, orderBy: { code: 'asc' } });
-    // any-cast until model is generated in types
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const p: any = prisma as any;
     const selections = await Promise.all(entitlements.map(async (e) => {
-      const sel = await p.projectSelection.findUnique({ where: { customerId_entitlementCode: { customerId, entitlementCode: e.code } } }).catch(()=>null);
+      const sel = await prisma.projectSelection.findUnique({ where: { customerId_entitlementCode: { customerId, entitlementCode: e.code } } }).catch(()=>null);
       return { entitlementCode: e.code, selection: sel || null };
     }));
 
@@ -46,8 +43,42 @@ export async function GET(_req: NextRequest) {
     let planTrialDays: number | null = null;
     let interval: 'month' | 'year' | null = null;
     let subData: { status: string; cancelAtPeriodEnd: boolean; currentPeriodEnd: Date | null } | null = null;
+    let stripeTrialEnd: Date | null = null;
+    let upTotal: number | null = null;
+    let upCurrency: string | null = null;
+    let upStart: Date | null = null;
+    let upEnd: Date | null = null;
 
     let priceIdsForEnt: string[] = [];
+
+    async function loadUpcoming(stripe: Stripe, opts: { subscriptionId?: string | null; priceId?: string | null }) {
+      try {
+        let up: Stripe.Invoice | null = null;
+        const invoices = stripe.invoices as unknown as { retrieveUpcoming: (params: Record<string, unknown>) => Promise<Stripe.Invoice> };
+        if (opts.subscriptionId) {
+          up = await invoices.retrieveUpcoming({ customer: customerId, subscription: opts.subscriptionId || undefined });
+        }
+        // Fallback: try by price if subscription preview didn't yield lines/amounts
+        if (!up || !Array.isArray(up?.lines?.data) || up.lines.data.length === 0 || (up.total == null && (up as unknown as { subtotal?: number | null }).subtotal == null)) {
+          if (opts.priceId) {
+            up = await invoices.retrieveUpcoming({ customer: customerId, subscription_items: [{ price: opts.priceId, quantity: 1 }] });
+        }
+        }
+        if (up) {
+          const firstLine = Array.isArray(up.lines?.data) ? up.lines.data[0] : undefined;
+          const ps = firstLine?.period?.start ? new Date(firstLine.period.start * 1000) : null;
+          const pe = firstLine?.period?.end ? new Date(firstLine.period.end * 1000) : null;
+          const cur = up.currency || firstLine?.currency || null;
+          // Best-effort total: prefer up.total, else compute subtotal + tax
+          const subtotal = (up as unknown as { subtotal?: number | null }).subtotal ?? null;
+          const tax = (up as unknown as { tax?: number | null }).tax ?? 0;
+          const total: number | null = (up.total != null) ? up.total : (subtotal != null ? subtotal + (tax || 0) : null);
+          upTotal = total; upCurrency = cur; upStart = ps; upEnd = pe;
+        }
+      } catch {
+        // ignore
+      }
+    }
     if (sub) {
       const item = await prisma.subscriptionItem.findFirst({ where: { subscriptionId: sub.id }, orderBy: { id: 'asc' } });
       const allItems = await prisma.subscriptionItem.findMany({ where: { subscriptionId: sub.id } });
@@ -73,10 +104,54 @@ export async function GET(_req: NextRequest) {
             const stripe = new Stripe(sk);
             const price = await stripe.prices.retrieve(item.stripePriceId);
             interval = (price.recurring?.interval || null) as 'month' | 'year' | null;
+            // If DB is missing currentPeriodEnd (common in early local dev), fetch it from Stripe
+            if (!sub.currentPeriodEnd) {
+              try {
+                const liveSub = await stripe.subscriptions.retrieve(sub.stripeId);
+                const cpe = (liveSub as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+                const tEnd = (liveSub as Stripe.Subscription & { trial_end?: number | null }).trial_end ?? null;
+                if (cpe) {
+                  const cpeDate = new Date(cpe * 1000);
+                  subData = { status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: cpeDate };
+                  // Best-effort: persist so next calls don't need Stripe
+                  await prisma.subscription.update({ where: { id: sub.id }, data: { currentPeriodEnd: cpeDate } }).catch(()=>undefined);
+                }
+                if (tEnd) stripeTrialEnd = new Date(tEnd * 1000);
+              } catch {}
+            }
           }
         }
       } catch {}
-      subData = { status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null };
+      // Upcoming invoice (preview) with fallbacks
+      try {
+        const sk = process.env.STRIPE_SECRET_KEY;
+        if (sk) {
+          const stripe = new Stripe(sk);
+          await loadUpcoming(stripe, { subscriptionId: sub.stripeId, priceId: item?.stripePriceId || null });
+        }
+      } catch {}
+
+      // If we still don't have currentPeriodEnd and we have Stripe key, fetch subscription directly
+      try {
+        if (!sub.currentPeriodEnd && !subData) {
+          const sk = process.env.STRIPE_SECRET_KEY;
+          if (sk) {
+            const stripe = new Stripe(sk);
+            const liveSub = await stripe.subscriptions.retrieve(sub.stripeId);
+            const cpe = (liveSub as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+            if (cpe) {
+              const cpeDate = new Date(cpe * 1000);
+              subData = { status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: cpeDate };
+              await prisma.subscription.update({ where: { id: sub.id }, data: { currentPeriodEnd: cpeDate } }).catch(()=>undefined);
+            }
+          }
+        }
+      } catch {}
+
+      // Use DB value unless we already populated from Stripe fallback above
+      if (!subData) {
+        subData = { status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null };
+      }
     } else {
       // Fallback: read directly from Stripe if DB isn't synced yet
       try {
@@ -101,12 +176,17 @@ export async function GET(_req: NextRequest) {
             }
             priceIdsForEnt = prefer.items.data.map(i => (typeof i.price?.id === 'string' ? i.price.id : null)).filter(Boolean) as string[];
             interval = (prefer.items.data[0]?.price?.recurring?.interval || null) as 'month'|'year'|null;
-            const cpe = (prefer as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+            const preferX = prefer as Stripe.Subscription & { current_period_end?: number; trial_end?: number | null };
+            const cpe = preferX.current_period_end;
+            const tEnd = preferX.trial_end ?? null;
             subData = {
               status: prefer.status,
               cancelAtPeriodEnd: !!prefer.cancel_at_period_end,
               currentPeriodEnd: cpe ? new Date(cpe * 1000) : null,
             };
+            if (tEnd) stripeTrialEnd = new Date(tEnd * 1000);
+            // Also preview upcoming invoice
+            try { await loadUpcoming(stripe, { subscriptionId: prefer.id, priceId: prefer.items?.data?.[0]?.price?.id || null }); } catch {}
           }
         }
       } catch {
@@ -132,18 +212,56 @@ export async function GET(_req: NextRequest) {
 
     // Derived helpers
     const now = new Date();
-    const trialRemainingDays = (subData?.status === 'trialing' && subData.currentPeriodEnd)
-      ? Math.max(0, Math.ceil((+subData.currentPeriodEnd - +now) / (1000*60*60*24)))
+    // Try to infer a period end when DB value is missing
+    let inferredPeriodEnd: Date | null = subData?.currentPeriodEnd || null;
+    if (!inferredPeriodEnd) {
+      try {
+        const entDates = entitlements
+          .map((e: { currentPeriodEnd: Date | null }) => e.currentPeriodEnd)
+          .filter((d: Date | null): d is Date => !!d)
+          .sort((a: Date, b: Date) => +a - +b);
+        if (entDates[0]) inferredPeriodEnd = entDates[0];
+      } catch {}
+    }
+    if (!inferredPeriodEnd) {
+      try {
+        const selDates = selections
+          .map((s: { selection: { pendingEffectiveAt?: Date | null } | null }) => s.selection?.pendingEffectiveAt ?? null)
+          .filter((d: Date | null): d is Date => !!d)
+          .sort((a: Date, b: Date) => +a - +b);
+        if (selDates[0]) inferredPeriodEnd = selDates[0];
+      } catch {}
+    }
+    // Note: do NOT use this estimate for trial end unless we have no Stripe data at all
+    if (!inferredPeriodEnd && sub && typeof planTrialDays === 'number' && planTrialDays > 0) {
+      // As a last resort for period end
+      const est = new Date(+sub.createdAt + planTrialDays * 24 * 60 * 60 * 1000);
+      if (+est > +now) inferredPeriodEnd = est;
+    }
+
+    // Choose the period end to expose. While trialing, prefer the actual trial end from Stripe.
+    const effectivePeriodEnd = (subData?.status === 'trialing')
+      ? (stripeTrialEnd || subData?.currentPeriodEnd || inferredPeriodEnd || null)
+      : (subData?.currentPeriodEnd || inferredPeriodEnd || null);
+
+    const trialRemainingDays = (subData?.status === 'trialing' && (stripeTrialEnd || effectivePeriodEnd))
+      ? Math.max(0, Math.ceil((+(stripeTrialEnd || effectivePeriodEnd!) - +now) / (1000*60*60*24)))
       : null;
-    const graceRemainingDays = (subData?.status === 'past_due' && subData.currentPeriodEnd && typeof planGraceDays === 'number')
-      ? Math.max(0, Math.ceil(((+subData.currentPeriodEnd + (planGraceDays*24*60*60*1000)) - +now) / (1000*60*60*24)))
+    const graceRemainingDays = (subData?.status === 'past_due' && effectivePeriodEnd && typeof planGraceDays === 'number')
+      ? Math.max(0, Math.ceil(((+effectivePeriodEnd + (planGraceDays*24*60*60*1000)) - +now) / (1000*60*60*24)))
       : null;
+
+    const nextInvoiceDate = (subData?.status === 'trialing')
+      ? (stripeTrialEnd || effectivePeriodEnd || null)
+      : (effectivePeriodEnd || null);
+
+    // Expose only amount and date for upcoming invoice; omit period bounds to keep types simple
 
     return new Response(JSON.stringify({
       subscription: subData ? {
         status: subData.status,
         cancelAtPeriodEnd: subData.cancelAtPeriodEnd,
-        currentPeriodEnd: subData.currentPeriodEnd?.toISOString() || null,
+        currentPeriodEnd: (stripeTrialEnd && subData.status === 'trialing' ? stripeTrialEnd : (subData.currentPeriodEnd || effectivePeriodEnd))?.toISOString() || null,
         planId,
         planLabel,
         interval,
@@ -151,6 +269,11 @@ export async function GET(_req: NextRequest) {
         trialDays: planTrialDays,
         trialRemainingDays,
         graceRemainingDays,
+        nextInvoiceDate: nextInvoiceDate ? nextInvoiceDate.toISOString() : null,
+        nextInvoiceTotal: upTotal,
+        nextInvoiceCurrency: upCurrency,
+        nextInvoicePeriodStart: null,
+        nextInvoicePeriodEnd: null,
       } : null,
       entitlements: entitlements.map(e => ({ code: e.code, currentPeriodEnd: e.currentPeriodEnd?.toISOString() || null, status: e.status })),
       selections,

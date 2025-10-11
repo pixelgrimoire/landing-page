@@ -24,13 +24,14 @@ export async function POST(req: NextRequest) {
     const slug = (typeof slugRaw === 'string' ? slugRaw : '').toLowerCase().trim().replace(/[^a-z0-9-]+/g, '');
     if (!file || !slug) return new Response(JSON.stringify({ error: 'Missing file or slug' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
-    const type = (file as any).type as string | undefined;
+    const f = file as File;
+    const type = f.type as string | undefined;
     if (!type || !type.startsWith('image/')) return new Response(JSON.stringify({ error: 'Only image files are allowed' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
-    const size = (file as any).size as number | undefined;
+    const size = f.size as number | undefined;
     if (size && size > 5 * 1024 * 1024) return new Response(JSON.stringify({ error: 'Max 5MB' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
-    const name = (file as any).name as string | undefined;
+    const name = f.name as string | undefined;
     const extFromName = name && name.includes('.') ? name.split('.').pop()!.toLowerCase() : (type === 'image/png' ? 'png' : type === 'image/jpeg' ? 'jpg' : 'bin');
     const key = `featured/${slug}-${Date.now()}.${extFromName}`;
 
@@ -42,4 +43,3 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
-

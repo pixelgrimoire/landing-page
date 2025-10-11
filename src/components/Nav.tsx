@@ -271,7 +271,7 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
           <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={() => setAdminOpen(false)} />
           <div className="absolute inset-0 flex items-center justify-center p-4">
             <div className="relative w-full max-w-7xl h-[88vh] rounded-xl border border-white/10 bg-white/[.02] shadow-2xl backdrop-blur-md pixel-border overflow-hidden">
-              <button aria-label="Cerrar" onClick={() => setAdminOpen(false)} className="pixel-close-btn -top-5 -right-5 z-20"><span className="btn-face" /></button>
+              <button aria-label="Cerrar" onClick={() => setAdminOpen(false)} className="pixel-close-btn top-2 right-2 z-30"><span className="btn-face" /></button>
               <div className="p-4 sm:p-6 h-full overflow-auto">
                 <h3 className="text-white font-bold smooth-font mb-4">Administración</h3>
                 <AdminPanel />

@@ -18,12 +18,12 @@ const registry: Record<string, React.ReactNode> = {
   qubito: <QubitoDemo />,
 };
 
-export default function FeaturedReactDemoPage({ params }: { params: { slug: string } }) {
-  const node = registry[params.slug.toLowerCase()] || (<div style={{ padding: 16 }}>No hay demo de React registrada para “{params.slug}”.</div>);
+export default async function FeaturedReactDemoPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const node = registry[slug.toLowerCase()] || (<div style={{ padding: 16 }}>No hay demo de React registrada para “{slug}”.</div>);
   return (
     <html>
       <body style={{ margin: 0 }}>{node}</body>
     </html>
   );
 }
-

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type FP = { id: string; slug: string; title: string; subtitle?: string | null; summary?: string | null; thumbnailUrl?: string | null; kind?: string | null; contentUrl?: string | null; componentKey?: string | null; html: string; active: boolean; sortOrder: number };
+type FP = { id: string; slug: string; title: string; subtitle?: string | null; summary?: string | null; thumbnailUrl?: string | null; thumbnailHtml?: string | null; kind?: string | null; contentUrl?: string | null; componentKey?: string | null; html: string; active: boolean; sortOrder: number };
 
 export default function AdminFeatured() {
   const [rows, setRows] = useState<FP[] | null>(null);
@@ -27,7 +27,7 @@ export default function AdminFeatured() {
 
   const openCreate = () => {
     const nextOrder = (rows && rows.length) ? (Math.max(...rows.map(r => r.sortOrder || 0)) + 10) : 100;
-    setEditing({ id: '', slug: '', title: '', subtitle: '', summary: '', thumbnailUrl: '', kind: 'html', contentUrl: '', componentKey: '', html: '', active: true, sortOrder: nextOrder });
+    setEditing({ id: '', slug: '', title: '', subtitle: '', summary: '', thumbnailUrl: '', thumbnailHtml: '', kind: 'html', contentUrl: '', componentKey: '', html: '', active: true, sortOrder: nextOrder });
   };
   const cancel = () => { setEditing(null); refresh(); };
   const save = async () => {
@@ -101,6 +101,9 @@ export default function AdminFeatured() {
             <input ref={fileRef} type="file" accept="image/*" className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />
             <button type="button" disabled={busy || !editing.slug} onClick={uploadThumb} className="px-3 py-2 rounded-md border border-white/20 text-white/80 hover:bg-white/5 disabled:opacity-60">Subir</button>
           </div>
+          <label className="text-xs col-span-2">Thumbnail HTML (opcional)
+            <textarea value={editing.thumbnailHtml || ''} onChange={e=>setEditing({ ...(editing as FP), thumbnailHtml: e.target.value })} rows={4} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm font-mono" placeholder="&lt;div&gt;...&lt;/div&gt;" />
+          </label>
           <label className="text-xs">Tipo
             <select value={editing.kind || 'html'} onChange={e=> setEditing({ ...(editing as FP), kind: e.target.value })} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm">
               <option value="html">HTML (DB o Blob)</option>
@@ -124,6 +127,44 @@ export default function AdminFeatured() {
             <input type="checkbox" checked={editing.active} onChange={e=>setEditing({ ...editing, active: e.target.checked })} /> Activo
           </label>
           <div />
+          {/* Preview area */}
+          <div className="col-span-2 mt-2">
+            <div className="text-xs text-white/60 mb-2">Previsualización</div>
+            <div className="grid md:grid-cols-2 gap-3">
+              {/* Card preview */}
+              <div className="border border-white/10 rounded-lg p-3 bg-white/5">
+                <div className="rounded-md mb-3 border border-white/10 overflow-hidden">
+                  {editing.thumbnailHtml ? (
+                    <div dangerouslySetInnerHTML={{ __html: editing.thumbnailHtml || '' }} />
+                  ) : editing.thumbnailUrl ? (
+                    <img src={editing.thumbnailUrl} alt={editing.title} className="h-28 w-full object-cover" />
+                  ) : (
+                    <div className="h-28 bg-gradient-to-br from-blue-500/15 via-violet-600/15 to-yellow-400/15" />
+                  )}
+                </div>
+                <div className="text-white font-semibold mb-1 smooth-font">{editing.title || 'Título del proyecto'}</div>
+                <div className="text-white/70 text-sm smooth-font">{editing.summary || editing.subtitle || 'Resumen o subtítulo'}</div>
+              </div>
+              {/* Mockup preview */}
+              <div className="border border-white/10 rounded-lg p-3 bg-white/5">
+                <div className="text-xs text-white/60 mb-2">Mockup</div>
+                <div style={{width:'100%', height:320}}>
+                  {(() => {
+                    const kind = (editing.kind || 'html').toLowerCase();
+                    const url = editing.contentUrl || '';
+                    if (kind === 'image' && url) return <img src={url} alt={editing.title} className="w-full h-full object-contain rounded-md"/>;
+                    if (kind === 'video' && url) return <video src={url} controls className="w-full h-full rounded-md bg-black"/>;
+                    if (kind === 'pdf' && url) return <iframe src={url} title={editing.title || 'pdf'} className="w-full h-full rounded-md"/>;
+                    if (kind === 'iframe' && url) return <iframe src={url} title={editing.title || 'iframe'} className="w-full h-full rounded-md" sandbox="allow-scripts allow-popups"/>;
+                    if (kind === 'react') return <iframe src={`/featured/app/${encodeURIComponent(editing.slug || 'demo')}`} title={editing.title || 'react'} className="w-full h-full rounded-md"/>;
+                    // html inline or html via URL
+                    if (url) return <iframe src={url} title={editing.title || 'html'} className="w-full h-full rounded-md"/>;
+                    return <iframe srcDoc={editing.html || ''} title={editing.title || 'html-inline'} className="w-full h-full rounded-md"/>;
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="col-span-2">
             <button disabled={busy || !editing.slug || !editing.title} onClick={save} className="px-3 py-2 rounded-md bg-yellow-400 text-black text-sm disabled:opacity-60">{busy ? 'Guardando…' : 'Guardar'}</button>
             {editing.slug && (

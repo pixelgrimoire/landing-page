@@ -6,22 +6,27 @@ import { PROJECTS } from '@/lib/constants';
 
 type Selection = { entitlementCode: string; selection: { currentProject?: string | null; pendingProject?: string | null; pendingEffectiveAt?: string | null } | null };
 
-type ApiData = {
-  subscription: {
-    status: string;
-    cancelAtPeriodEnd: boolean;
-    currentPeriodEnd: string | null;
-    planId: string | null;
-    planLabel: string | null;
-    interval: 'month'|'year'|null;
-    trialDays?: number | null;
-    graceDays?: number | null;
-    trialRemainingDays?: number | null;
-    graceRemainingDays?: number | null;
-  } | null;
-  entitlements: Array<{ code: string; currentPeriodEnd: string | null; status: string }>;
-  selections: Selection[];
-};
+  type ApiData = {
+    subscription: {
+      status: string;
+      cancelAtPeriodEnd: boolean;
+      currentPeriodEnd: string | null;
+      planId: string | null;
+      planLabel: string | null;
+      interval: 'month'|'year'|null;
+      trialDays?: number | null;
+      graceDays?: number | null;
+      trialRemainingDays?: number | null;
+      graceRemainingDays?: number | null;
+      nextInvoiceDate?: string | null;
+      nextInvoiceTotal?: number | null; // cents
+      nextInvoiceCurrency?: string | null;
+      nextInvoicePeriodStart?: string | null;
+      nextInvoicePeriodEnd?: string | null;
+    } | null;
+    entitlements: Array<{ code: string; currentPeriodEnd: string | null; status: string }>;
+    selections: Selection[];
+  };
 
 export default function SubscriptionAccountPage() {
   const [data, setData] = useState<ApiData | null>(null);
@@ -43,12 +48,24 @@ export default function SubscriptionAccountPage() {
   }, [nextRenewal]);
 
   const trialRemaining = useMemo(() => {
-    return typeof data?.subscription?.trialRemainingDays === 'number' ? data.subscription.trialRemainingDays : (data?.subscription?.status === 'trialing' && daysToRenewal != null ? daysToRenewal : null);
-  }, [data?.subscription?.trialRemainingDays, data?.subscription?.status, daysToRenewal]);
+    return typeof data?.subscription?.trialRemainingDays === 'number' ? data.subscription.trialRemainingDays : null;
+  }, [data?.subscription?.trialRemainingDays]);
 
   const graceRemaining = useMemo(() => {
     return typeof data?.subscription?.graceRemainingDays === 'number' ? data.subscription.graceRemainingDays : null;
   }, [data?.subscription?.graceRemainingDays]);
+
+  const nextInvoiceDate = useMemo(() => {
+    const iso = data?.subscription?.nextInvoiceDate;
+    if (!iso) return null; try { return new Date(iso); } catch { return null; }
+  }, [data?.subscription?.nextInvoiceDate]);
+
+  const nextInvoiceAmount = useMemo(() => {
+    const cents = data?.subscription?.nextInvoiceTotal;
+    const cur = data?.subscription?.nextInvoiceCurrency || 'usd';
+    if (typeof cents !== 'number') return null;
+    try { return new Intl.NumberFormat('es', { style: 'currency', currency: cur.toUpperCase() }).format(cents / 100); } catch { return `${(cents/100).toFixed(2)} ${cur.toUpperCase()}`; }
+  }, [data?.subscription?.nextInvoiceTotal, data?.subscription?.nextInvoiceCurrency]);
 
   async function load() {
     setLoading(true); setError(null);
@@ -139,9 +156,15 @@ export default function SubscriptionAccountPage() {
               <div className="text-lg font-semibold">{data.subscription?.planLabel || '—'} {data.subscription?.interval ? `(${data.subscription.interval === 'year' ? 'Anual' : 'Mensual'})` : ''}</div>
               <div className="mt-2 text-sm text-white/70">Estado: <span className="text-white">{data.subscription?.status || '—'}</span></div>
               {data.subscription?.status === 'trialing' ? (
-                <div className="mt-1 text-sm text-white/70">Prueba: <span className="text-white">{trialRemaining != null ? `${trialRemaining} días restantes` : '—'}</span>{nextRenewal ? <span className="text-white/50"> {`(termina el ${nextRenewal.toLocaleDateString()})`}</span> : null}</div>
+                <>
+                  <div className="mt-1 text-sm text-white/70">Prueba: <span className="text-white">{trialRemaining != null ? `${trialRemaining} días restantes` : '—'}</span>{nextRenewal ? <span className="text-white/50"> {`(termina el ${nextRenewal.toLocaleDateString()})`}</span> : null}</div>
+                  <div className="mt-1 text-sm text-white/70">Próxima factura: <span className="text-white">{nextInvoiceDate ? nextInvoiceDate.toLocaleDateString() : '—'}</span>{nextInvoiceAmount ? <span className="text-white/50"> {`(${nextInvoiceAmount})`}</span> : null}</div>
+                </>
               ) : (
-                <div className="mt-1 text-sm text-white/70">Próxima renovación: <span className="text-white">{nextRenewal ? nextRenewal.toLocaleDateString() : '—'}</span>{daysToRenewal!=null ? <span className="text-white/50"> {`(${daysToRenewal} días)`}</span> : null}</div>
+                <>
+                  <div className="mt-1 text-sm text-white/70">Próxima renovación: <span className="text-white">{nextRenewal ? nextRenewal.toLocaleDateString() : '—'}</span>{daysToRenewal!=null ? <span className="text-white/50"> {`(${daysToRenewal} días)`}</span> : null}</div>
+                  <div className="mt-1 text-sm text-white/70">Próxima factura: <span className="text-white">{nextInvoiceDate ? nextInvoiceDate.toLocaleDateString() : (nextRenewal ? nextRenewal.toLocaleDateString() : '—')}</span>{nextInvoiceAmount ? <span className="text-white/50"> {`(${nextInvoiceAmount})`}</span> : null}</div>
+                </>
               )}
               {data.subscription?.status === 'past_due' && (
                 <div className="mt-1 text-sm text-yellow-300">Pago pendiente: gracia restante {graceRemaining != null ? `${graceRemaining} días` : '—'}</div>

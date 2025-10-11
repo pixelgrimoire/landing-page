@@ -19,7 +19,7 @@ export default function AdminEntitlements() {
       const res = await fetch('/api/admin/plans', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'No se pudo cargar');
-      setRows((data.items || []).map((r: any) => ({ id: r.id, planId: r.planId, name: r.name, entitlementsJson: r.entitlementsJson, entitlementProjectsJson: r.entitlementProjectsJson })) as PlanRow[]);
+      setRows((data.items || []).map((r: { id: string; planId: string; name: string; entitlementsJson?: string | null; entitlementProjectsJson?: string | null; }) => ({ id: r.id, planId: r.planId, name: r.name, entitlementsJson: r.entitlementsJson, entitlementProjectsJson: r.entitlementProjectsJson })) as PlanRow[]);
       const map: Record<string,string> = {};
       for (const r of (data.items || [])) {
         map[r.planId] = (()=>{ try { const arr = r.entitlementsJson ? JSON.parse(r.entitlementsJson) as string[] : []; return arr.join('\n'); } catch { return ''; } })();

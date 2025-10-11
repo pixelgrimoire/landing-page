@@ -61,10 +61,11 @@ export async function POST(req: NextRequest) {
     const entitlementsJson = Array.isArray(entitlements) ? JSON.stringify(entitlements) : (typeof entitlements === 'string' ? JSON.stringify(entitlements.split('\n').map(s=>s.trim()).filter(Boolean)) : undefined);
     // Optional mapping entitlement -> allowed project slugs
     let entitlementProjectsJson: string | undefined = undefined;
-    if (typeof (body as any).entitlementProjects === 'object' && (body as any).entitlementProjects !== null) {
-      entitlementProjectsJson = JSON.stringify((body as any).entitlementProjects);
-    } else if (typeof (body as any).entitlementProjects === 'string') {
-      const txt = String((body as any).entitlementProjects);
+    const extra = body as unknown as { entitlementProjects?: Record<string, string[]> | string | null };
+    if (extra.entitlementProjects && typeof extra.entitlementProjects === 'object') {
+      entitlementProjectsJson = JSON.stringify(extra.entitlementProjects);
+    } else if (typeof extra.entitlementProjects === 'string') {
+      const txt = String(extra.entitlementProjects);
       const map: Record<string, string[]> = {};
       for (const ln of txt.split('\n')) {
         const line = ln.trim(); if (!line) continue;

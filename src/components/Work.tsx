@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRitualSummon } from "@/components/useRitualSummon";
 
 export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }) {
-  const [items, setItems] = useState<Array<{ slug: string; title: string; subtitle?: string | null; summary?: string | null; thumbnailUrl?: string | null; kind?: string | null; contentUrl?: string | null }>>([]);
+  const [items, setItems] = useState<Array<{ slug: string; title: string; subtitle?: string | null; summary?: string | null; thumbnailUrl?: string | null; thumbnailHtml?: string | null; kind?: string | null; contentUrl?: string | null }>>([]);
   useEffect(() => {
     (async () => {
       try {
@@ -41,7 +41,9 @@ export default function Work({ magicEnabled = true }: { magicEnabled?: boolean }
               className="text-left glass border border-white/10 rounded-2xl p-6 pixel-border fade-up cursor-pointer hover:border-white/20 transition-colors"
               style={{ animationDelay: `${i * 90}ms` }}
             >
-              {it.thumbnailUrl ? (
+              {it.thumbnailHtml ? (
+                <div className="rounded-md mb-4 border border-white/10 overflow-hidden" dangerouslySetInnerHTML={{ __html: it.thumbnailHtml || '' }} />
+              ) : it.thumbnailUrl ? (
                 <img src={it.thumbnailUrl} alt={it.title} className="rounded-md mb-4 border border-white/10 overflow-hidden h-28 w-full object-cover" />
               ) : (
                 <div className="rounded-md mb-4 border border-white/10 overflow-hidden h-28 bg-gradient-to-br from-blue-500/15 via-violet-600/15 to-yellow-400/15" />

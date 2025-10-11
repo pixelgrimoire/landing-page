@@ -144,6 +144,7 @@ model FeaturedProject {
   subtitle  String?
   summary   String?
   thumbnailUrl String?
+  thumbnailHtml String?
   // Render kind: html | iframe | image | video | pdf | react
   kind      String   @default("html")
   // For iframe/image/video/pdf/html (Blob or external):
