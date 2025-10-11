@@ -1,19 +1,11 @@
 import type { NextRequest } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
+// Removed unused Clerk imports
+import { ensureAdmin as requireAdmin } from '@/lib/authz';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
-async function ensureAdmin() {
-  const { userId } = await auth();
-  if (!userId) return { ok: false as const, status: 401, error: 'Unauthorized' };
-  const clerk = await clerkClient();
-  const u = await clerk.users.getUser(userId);
-  const email = u.emailAddresses?.find(e=>e.id===u.primaryEmailAddressId)?.emailAddress || u.emailAddresses?.[0]?.emailAddress || '';
-  const admins = (process.env.ADMIN_EMAILS || '').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-  if (!admins.includes((email || '').toLowerCase())) return { ok: false as const, status: 403, error: 'Forbidden' };
-  return { ok: true as const };
-}
+const ensureAdmin = requireAdmin;
 
 export async function GET() {
   const adm = await ensureAdmin(); if (!adm.ok) return new Response(JSON.stringify({ error: adm.error }), { status: adm.status, headers: { 'Content-Type': 'application/json' } });
@@ -25,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     const adm = await ensureAdmin(); if (!adm.ok) return new Response(JSON.stringify({ error: adm.error }), { status: adm.status, headers: { 'Content-Type': 'application/json' } });
     const body = await req.json().catch(()=>({}));
-    const { id, title, subtitle, summary, html, thumbnailUrl, thumbnailHtml, kind, contentUrl, componentKey, active } = body as { id?: string; title?: string; subtitle?: string | null; summary?: string | null; html?: string; thumbnailUrl?: string | null; thumbnailHtml?: string | null; kind?: string; contentUrl?: string | null; componentKey?: string | null; active?: boolean };
+    const { title, subtitle, summary, html, thumbnailUrl, thumbnailHtml, kind, contentUrl, componentKey, active } = body as { title?: string; subtitle?: string | null; summary?: string | null; html?: string; thumbnailUrl?: string | null; thumbnailHtml?: string | null; kind?: string; contentUrl?: string | null; componentKey?: string | null; active?: boolean };
     let { slug, sortOrder } = body as { slug?: string; sortOrder?: number };
     const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!slug && title) slug = slugify(String(title));

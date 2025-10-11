@@ -12,7 +12,7 @@ export default function AdminStripeTools() {
   const [view, setView] = useState<View>('table');
   const [list, setList] = useState<PlanRow[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [editing, setEditing] = useState<PlanRow | null>(null);
+  // removed unused editing state
 
   const [planId, setPlanId] = useState("");
   const [name, setName] = useState("");
@@ -52,7 +52,7 @@ export default function AdminStripeTools() {
   }, []);
 
   const openCreate = useCallback(() => { setResult(null); setView('create'); }, []);
-  const cancelCreate = useCallback(() => { setView('table'); setEditing(null); refresh(); }, [refresh]);
+  const cancelCreate = useCallback(() => { setView('table'); refresh(); }, [refresh]);
 
   const submit = useCallback(async () => {
     if (!canSubmit) return;
@@ -79,7 +79,7 @@ export default function AdminStripeTools() {
     } finally {
       setBusy(false);
     }
-  }, [canSubmit, planId, name, currency, amountM, amountY, trial]);
+  }, [canSubmit, planId, name, currency, amountM, amountY, trial, subtitle, color, popular, comingSoon, featuresText, entitlementsText, grace]);
 
   // initial load
   useEffect(() => { refresh(); }, [refresh]);
@@ -150,7 +150,6 @@ export default function AdminStripeTools() {
                         refresh();
                       }}>↓</button>
                       <button className="px-2 py-1 rounded-md border border-white/20 text-white/80 hover:bg-white/5" onClick={async () => {
-                        setEditing(r);
                         setPlanId(r.planId);
                         setName(r.name);
                         setCurrency(r.currency || 'usd');
@@ -349,7 +348,7 @@ export default function AdminStripeTools() {
       {result?.error && (
         <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded p-2">{result.error}</div>
       )}
-      <div className="text-[11px] text-white/50">Solo admins (emails en <code>ADMIN_EMAILS</code>). La configuración se guarda en la base de datos.</div>
+      <div className="text-[11px] text-white/50">Solo admins (rol Clerk <code>admin</code>). La configuración se guarda en la base de datos.</div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { PROJECTS } from "@/lib/constants";
 
 type PlanRow = { id: string; planId: string; name: string; entitlementsJson?: string | null; entitlementProjectsJson?: string | null };

@@ -1,19 +1,11 @@
 import type { NextRequest } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
+// Removed unused Clerk imports
+import { ensureAdmin as requireAdmin } from '@/lib/authz';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
-async function ensureAdmin() {
-  const { userId } = await auth();
-  if (!userId) return { ok: false as const, error: 'Unauthorized' };
-  const clerk = await clerkClient();
-  const u = await clerk.users.getUser(userId);
-  const email = u.emailAddresses?.find(e=>e.id===u.primaryEmailAddressId)?.emailAddress || u.emailAddresses?.[0]?.emailAddress || '';
-  const admins = (process.env.ADMIN_EMAILS || '').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-  if (!admins.includes((email || '').toLowerCase())) return { ok: false as const, error: 'Forbidden' };
-  return { ok: true as const };
-}
+const ensureAdmin = requireAdmin;
 
 export async function GET() {
   const admin = await ensureAdmin(); if (!admin.ok) return new Response(JSON.stringify({ error: admin.error }), { status: admin.error === 'Unauthorized' ? 401 : 403, headers: { 'Content-Type': 'application/json' } });

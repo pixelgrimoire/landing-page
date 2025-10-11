@@ -11,8 +11,7 @@ export async function GET(req: NextRequest) {
     const item = await prisma.featuredProject.findUnique({ where: { slug } });
     if (!item || !item.active) return new Response('Not found', { status: 404 });
     return new Response(item.html || '', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
-  } catch (e: unknown) {
+  } catch {
     return new Response('Error', { status: 500 });
   }
 }
-

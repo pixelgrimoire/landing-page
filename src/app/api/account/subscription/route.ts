@@ -46,8 +46,7 @@ export async function GET(_req: NextRequest) {
     let stripeTrialEnd: Date | null = null;
     let upTotal: number | null = null;
     let upCurrency: string | null = null;
-    let upStart: Date | null = null;
-    let upEnd: Date | null = null;
+    // Removed unused upStart/upEnd variables
 
     let priceIdsForEnt: string[] = [];
 
@@ -66,14 +65,12 @@ export async function GET(_req: NextRequest) {
         }
         if (up) {
           const firstLine = Array.isArray(up.lines?.data) ? up.lines.data[0] : undefined;
-          const ps = firstLine?.period?.start ? new Date(firstLine.period.start * 1000) : null;
-          const pe = firstLine?.period?.end ? new Date(firstLine.period.end * 1000) : null;
           const cur = up.currency || firstLine?.currency || null;
           // Best-effort total: prefer up.total, else compute subtotal + tax
           const subtotal = (up as unknown as { subtotal?: number | null }).subtotal ?? null;
           const tax = (up as unknown as { tax?: number | null }).tax ?? 0;
           const total: number | null = (up.total != null) ? up.total : (subtotal != null ? subtotal + (tax || 0) : null);
-          upTotal = total; upCurrency = cur; upStart = ps; upEnd = pe;
+          upTotal = total; upCurrency = cur;
         }
       } catch {
         // ignore

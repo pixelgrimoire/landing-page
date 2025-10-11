@@ -99,11 +99,20 @@ export default function Nav({ onToggleMagicAction, magicEnabled }: { onToggleMag
   const { user } = useUser();
   const isAdmin = useMemo(() => {
     try {
-      const primary = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '';
-      const list = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || process.env.ADMIN_EMAILS || '').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-      return !!primary && list.includes(primary.toLowerCase());
+      const pm = (user?.publicMetadata || {}) as Record<string, unknown>;
+      const role = typeof pm.role === 'string' ? pm.role.toLowerCase() : '';
+      const rolesVal = (pm as Record<string, unknown>)['roles'];
+      const roles = Array.isArray(rolesVal) ? (rolesVal as unknown[]).map(v => typeof v === 'string' ? v.toLowerCase() : '') : [];
+      // Optional: support unsafeMetadata.role for legacy projects
+      const unsafe: unknown = (user as unknown as { unsafeMetadata?: unknown } | null)?.unsafeMetadata;
+      let uRole = '';
+      if (unsafe && typeof unsafe === 'object' && 'role' in unsafe) {
+        const v = (unsafe as Record<string, unknown>).role;
+        if (typeof v === 'string') uRole = v.toLowerCase();
+      }
+      return role === 'admin' || uRole === 'admin' || roles.includes('admin');
     } catch { return false; }
-  }, [user?.primaryEmailAddress?.emailAddress, user?.emailAddresses]);
+  }, [user]);
 
   const closeMenu = () => setMenuOpen(false);
   return (
