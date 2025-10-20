@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SignIn, SignUp, useUser } from '@clerk/nextjs';
 import { clerkAppearance } from '@/lib/clerkAppearance';
 import { PROJECTS } from '@/lib/constants';
+import PasswordHint from '@/components/PasswordHint';
 
 type Props = {
   open: boolean;
@@ -148,6 +149,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
                     <>
                       <h3 className="font-semibold mb-2">Crear cuenta</h3>
                       <SignUp routing="hash" signInUrl="#/sign-in" appearance={clerkAppearance} afterSignUpUrl="/subscribe/success" />
+                      <PasswordHint />
                       <div className="text-xs text-white/60 mt-2 text-center">
                         ¿Ya tienes cuenta? <button onClick={()=>setAuthMode('signin')} className="underline hover:text-white">Inicia sesión</button>
                       </div>

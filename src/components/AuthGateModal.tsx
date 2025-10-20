@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { SignIn, SignUp, useUser } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerkAppearance";
+import PasswordHint from '@/components/PasswordHint';
 
 type Props = {
   open: boolean;
@@ -46,7 +47,10 @@ export default function AuthGateModal({ open, onClose, onAuthed }: Props) {
             <h3 className="font-semibold mb-2">{mode === 'signup' ? 'Crea tu cuenta' : 'Inicia sesión'}</h3>
             {mounted && (
               mode === 'signup' ? (
-                <SignUp routing="hash" appearance={clerkAppearance} />
+                <div>
+                  <SignUp routing="hash" appearance={clerkAppearance} />
+                  <PasswordHint />
+                </div>
               ) : (
                 <SignIn routing="hash" appearance={clerkAppearance} />
               )
@@ -70,4 +74,3 @@ export default function AuthGateModal({ open, onClose, onAuthed }: Props) {
     </div>
   );
 }
-

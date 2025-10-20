@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useUser, SignUp } from '@clerk/nextjs';
 import { clerkAppearance } from '@/lib/clerkAppearance';
+import PasswordHint from '@/components/PasswordHint';
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -106,6 +107,7 @@ export default function OnboardAfterPurchaseModal({ open, onClose }: Props) {
               <div className="grid place-items-center">
                 <div className="w-full max-w-md">
                   <SignUp routing="hash" signInUrl="/sign-in" appearance={clerkAppearance} />
+                  <PasswordHint />
                 </div>
                 <div className="text-[11px] text-white/50 mt-2">Al terminar, continuaremos con la vinculación.</div>
               </div>
@@ -158,4 +160,3 @@ export default function OnboardAfterPurchaseModal({ open, onClose }: Props) {
     </div>
   );
 }
-

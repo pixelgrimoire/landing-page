@@ -1,6 +1,7 @@
 'use client';
 import { SignUp } from '@clerk/nextjs';
 import { clerkAppearance } from '@/lib/clerkAppearance';
+import PasswordHint from '@/components/PasswordHint';
 
 export default function Page() {
   const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -16,7 +17,10 @@ export default function Page() {
   }
   return (
     <div className="min-h-[60vh] flex items-center justify-center py-16">
-      <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" appearance={clerkAppearance} />
+      <div>
+        <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" appearance={clerkAppearance} />
+        <PasswordHint />
+      </div>
     </div>
   );
 }
