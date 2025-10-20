@@ -26,8 +26,9 @@ export default function Page() {
           path="/sign-up"
           signInUrl="/sign-in"
           appearance={clerkAppearance}
-          forceRedirectUrl={redirect || undefined}
-          fallbackRedirectUrl={redirect || '/'}
+          afterSignUpUrl={redirect ? `/auth/redirect?to=${encodeURIComponent(redirect)}` : '/'}
+          // Fallback keeps behavior consistent if Clerk ignores the above
+          fallbackRedirectUrl={redirect ? `/auth/redirect?to=${encodeURIComponent(redirect)}` : '/'}
         />
         <PasswordHint />
       </div>
