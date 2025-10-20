@@ -2,8 +2,11 @@
 import { SignUp } from '@clerk/nextjs';
 import { clerkAppearance } from '@/lib/clerkAppearance';
 import PasswordHint from '@/components/PasswordHint';
+import { useSearchParams } from 'next/navigation';
 
 export default function Page() {
+  const search = useSearchParams();
+  const redirect = search?.get('redirect') || search?.get('redirect_url') || undefined;
   const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   if (!hasClerk) {
     return (
@@ -18,7 +21,14 @@ export default function Page() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center py-16">
       <div>
-        <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" appearance={clerkAppearance} />
+        <SignUp
+          routing="path"
+          path="/sign-up"
+          signInUrl="/sign-in"
+          appearance={clerkAppearance}
+          forceRedirectUrl={redirect || undefined}
+          fallbackRedirectUrl={redirect || '/'}
+        />
         <PasswordHint />
       </div>
     </div>
