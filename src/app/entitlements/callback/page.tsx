@@ -10,14 +10,16 @@ export const metadata: Metadata = {
 };
 
 type Props = {
-  searchParams: { entitlementCode?: string; aud?: string; origin?: string };
+  // Next.js 15: searchParams is now a Promise
+  searchParams: Promise<{ entitlementCode?: string; aud?: string; origin?: string }>;
 };
 
 export default async function Page({ searchParams }: Props) {
   const { userId } = await auth();
-  const entitlementCode = (searchParams.entitlementCode || '').trim();
-  const requestedAud = (searchParams.aud || '').trim().toLowerCase();
-  const originParam = (searchParams.origin || '').trim();
+  const params = await searchParams;
+  const entitlementCode = (params?.entitlementCode || '').trim();
+  const requestedAud = (params?.aud || '').trim().toLowerCase();
+  const originParam = (params?.origin || '').trim();
 
   // Validate target origin against allowlist
   const allowed = (process.env.ENTITLEMENTS_ALLOWED_ORIGINS || '')
@@ -129,4 +131,3 @@ export default async function Page({ searchParams }: Props) {
     </html>
   );
 }
-
