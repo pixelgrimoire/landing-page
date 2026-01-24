@@ -7,6 +7,7 @@ import { PROJECTS } from '@/lib/constants';
 type Selection = { entitlementCode: string; selection: { currentProject?: string | null; pendingProject?: string | null; pendingEffectiveAt?: string | null } | null };
 
   type ApiData = {
+    customerId?: string | null;
     subscription: {
       status: string;
       cancelAtPeriodEnd: boolean;
@@ -34,6 +35,11 @@ export default function SubscriptionAccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [allowedMap, setAllowedMap] = useState<Record<string, string[]>>({});
+  const qubitoUrl = (process.env.NEXT_PUBLIC_QUBITO_URL || '').trim();
+  const qubitoLink = useMemo(() => {
+    if (!qubitoUrl || !data?.customerId) return '';
+    return `${qubitoUrl.replace(/\/$/, '')}/login?tenantId=${encodeURIComponent(data.customerId)}`;
+  }, [qubitoUrl, data?.customerId]);
 
   const nextRenewal = useMemo(() => {
     const iso = data?.subscription?.currentPeriodEnd;
@@ -170,6 +176,18 @@ export default function SubscriptionAccountPage() {
                 <div className="mt-1 text-sm text-yellow-300">Pago pendiente: gracia restante {graceRemaining != null ? `${graceRemaining} días` : '—'}</div>
               )}
               <div className="mt-3">
+                {qubitoLink ? (
+                  <div className="mb-2">
+                    <a
+                      href={qubitoLink}
+                      className="px-4 py-2 rounded bg-white/90 text-black font-semibold"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Abrir Qubito
+                    </a>
+                  </div>
+                ) : null}
                 <button onClick={toggleCancel} disabled={saving || !data.subscription} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold disabled:opacity-60">
                   {saving ? 'Guardando…' : (data.subscription?.cancelAtPeriodEnd ? 'Reanudar renovación' : 'Cancelar renovación')}
                 </button>

@@ -27,7 +27,7 @@
     "@stripe/stripe-js": "^4.6.0",
     "@vercel/blob": "^2.0.0",
     "gsap": "^3.13.0",
-    "next": "15.5.2",
+    "next": "^15.5.9",
     "nodemailer": "^6.9.14",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -41,7 +41,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.2",
+    "eslint-config-next": "^15.5.9",
     "prisma": "^5.20.0",
     "tailwindcss": "^4",
     "typescript": "^5"

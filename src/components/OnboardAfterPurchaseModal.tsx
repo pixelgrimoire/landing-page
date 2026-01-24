@@ -25,6 +25,11 @@ export default function OnboardAfterPurchaseModal({ open, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [chosen, setChosen] = useState('');
   const [saving, setSaving] = useState(false);
+  const qubitoUrl = (process.env.NEXT_PUBLIC_QUBITO_URL || '').trim();
+  const qubitoLink = useMemo(() => {
+    if (!qubitoUrl || !stripeCustomerId) return '';
+    return `${qubitoUrl.replace(/\/$/, '')}/login?tenantId=${encodeURIComponent(stripeCustomerId)}`;
+  }, [qubitoUrl, stripeCustomerId]);
 
   useEffect(() => { if (isSignedIn) setStep((s)=> s==='signup' ? 'link' : s); }, [isSignedIn]);
 
@@ -148,7 +153,17 @@ export default function OnboardAfterPurchaseModal({ open, onClose }: Props) {
                 <div className="text-center">
                   <div className="text-lg font-semibold mb-2">¡Listo!</div>
                   <div className="text-white/70 mb-4">Tu cuenta está vinculada{stripeCustomerId ? ' y configurada' : ''}.</div>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center flex-wrap gap-2">
+                    {qubitoLink ? (
+                      <a
+                        href={qubitoLink}
+                        className="px-4 py-2 rounded-md border border-white/20 hover:bg-white/5 pixel-font text-[11px] tracking-wider"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Abrir Qubito
+                      </a>
+                    ) : null}
                     <a href="/account/projects" className="px-4 py-2 rounded-md border border-white/20 hover:bg-white/5 pixel-font text-[11px] tracking-wider">Gestionar proyecto</a>
                   </div>
                 </div>

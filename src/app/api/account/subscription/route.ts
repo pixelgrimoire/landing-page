@@ -255,6 +255,7 @@ export async function GET(_req: NextRequest) {
     // Expose only amount and date for upcoming invoice; omit period bounds to keep types simple
 
     return new Response(JSON.stringify({
+      customerId,
       subscription: subData ? {
         status: subData.status,
         cancelAtPeriodEnd: subData.cancelAtPeriodEnd,

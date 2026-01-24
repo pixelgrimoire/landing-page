@@ -27,6 +27,11 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
   const [mounted, setMounted] = useState(false);
   const [cid, setCid] = useState<string | null>(customerId || null);
   const canProceed = useMemo(() => entitlements.length > 0 && entitlements.every(code => !!choices[code]), [entitlements, choices]);
+  const qubitoUrl = (process.env.NEXT_PUBLIC_QUBITO_URL || '').trim();
+  const qubitoLink = useMemo(() => {
+    if (!qubitoUrl || !cid) return '';
+    return `${qubitoUrl.replace(/\/$/, '')}/login?tenantId=${encodeURIComponent(cid)}`;
+  }, [qubitoUrl, cid]);
 
   useEffect(() => {
     if (!open) return;
@@ -209,7 +214,19 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
               <div className="text-white/80">
                 <div className="font-semibold mb-2">¡Todo listo!</div>
                 <p className="text-white/70 mb-4">Tu suscripción quedó vinculada y los proyectos seleccionados. Puedes cerrar este diálogo.</p>
-                <button onClick={() => router.push('/')} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold">Cerrar</button>
+                <div className="flex flex-wrap gap-2">
+                  {qubitoLink ? (
+                    <a
+                      href={qubitoLink}
+                      className="px-4 py-2 rounded bg-white/90 text-black font-semibold"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Abrir Qubito
+                    </a>
+                  ) : null}
+                  <button onClick={() => router.push('/')} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold">Cerrar</button>
+                </div>
               </div>
             )}
           </div>

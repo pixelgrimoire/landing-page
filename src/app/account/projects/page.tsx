@@ -22,6 +22,11 @@ export default function ProjectSelectionPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [chosen, setChosen] = useState('');
+  const qubitoUrl = (process.env.NEXT_PUBLIC_QUBITO_URL || '').trim();
+  const qubitoLink = useMemo(() => {
+    if (!qubitoUrl || !selection?.customerId) return '';
+    return `${qubitoUrl.replace(/\/$/, '')}/login?tenantId=${encodeURIComponent(selection.customerId)}`;
+  }, [qubitoUrl, selection?.customerId]);
 
   const pendingDate = useMemo(() => {
     const iso = selection?.pendingEffectiveAt;
@@ -99,7 +104,17 @@ export default function ProjectSelectionPage() {
         {error && <div className="text-red-300 mb-4">{error}</div>}
         {message && <div className="text-emerald-300 mb-4">{message}</div>}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {qubitoLink ? (
+            <a
+              href={qubitoLink}
+              className="px-4 py-2 rounded bg-white/90 text-black font-semibold"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir Qubito
+            </a>
+          ) : null}
           <button onClick={submit} disabled={loading} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold disabled:opacity-60">{loading ? 'Guardando…' : 'Guardar'}</button>
           <button onClick={load} className="px-4 py-2 rounded border border-white/10 bg-white/5 text-white/80">Actualizar</button>
         </div>
