@@ -6,6 +6,15 @@ import { PROJECTS } from '@/lib/constants';
 
 type Selection = { entitlementCode: string; selection: { currentProject?: string | null; pendingProject?: string | null; pendingEffectiveAt?: string | null } | null };
 
+type NexoraRelease = {
+  version: string;
+  downloadUrl: string | null;
+  fileName: string | null;
+  fileSizeMb: number | null;
+  publishedAt: string | null;
+  releaseUrl: string;
+};
+
   type ApiData = {
     customerId?: string | null;
     subscription: {
@@ -35,6 +44,7 @@ export default function SubscriptionAccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [allowedMap, setAllowedMap] = useState<Record<string, string[]>>({});
+  const [nexoraRelease, setNexoraRelease] = useState<NexoraRelease | null>(null);
   const qubitoUrl = (process.env.NEXT_PUBLIC_QUBITO_URL || '').trim();
   const qubitoLink = useMemo(() => {
     if (!qubitoUrl || !data?.customerId) return '';
@@ -91,6 +101,17 @@ export default function SubscriptionAccountPage() {
       try { const r = await fetch('/api/entitlements/allowed', { cache: 'no-store' }); const d = await r.json(); if (r.ok && d?.map) setAllowedMap(d.map as Record<string,string[]>); } catch {}
     })();
   }, []);
+
+  // Fetch Nexora installer info if user has a nexora.* entitlement
+  useEffect(() => {
+    if (!data) return;
+    const hasNexora = data.entitlements.some(e => e.code.startsWith('nexora.') && ['active', 'trialing'].includes(e.status));
+    if (!hasNexora) return;
+    fetch('/api/downloads/nexora', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.version) setNexoraRelease(d as NexoraRelease); })
+      .catch(() => null);
+  }, [data]);
 
   const toggleCancel = async () => {
     if (!data?.subscription) return;
@@ -221,6 +242,48 @@ export default function SubscriptionAccountPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {nexoraRelease && (
+              <div className="pixel-border rounded-lg p-4">
+                <div className="font-semibold mb-3 flex items-center gap-2">
+                  <span>⬇️</span> Nexora POS — Instalador Windows
+                </div>
+                <div className="text-sm text-white/70 mb-1">
+                  Versión: <span className="text-white font-mono">{nexoraRelease.version}</span>
+                  {nexoraRelease.fileSizeMb && (
+                    <span className="text-white/50 ml-2">({nexoraRelease.fileSizeMb} MB)</span>
+                  )}
+                </div>
+                {nexoraRelease.publishedAt && (
+                  <div className="text-xs text-white/50 mb-3">
+                    Publicado: {new Date(nexoraRelease.publishedAt).toLocaleDateString('es')}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  {nexoraRelease.downloadUrl ? (
+                    <a
+                      href={nexoraRelease.downloadUrl}
+                      className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors"
+                      download
+                    >
+                      Descargar instalador (.exe)
+                    </a>
+                  ) : (
+                    <span className="text-white/50 text-sm">Instalador no disponible aún</span>
+                  )}
+                  <a
+                    href={nexoraRelease.releaseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 rounded border border-white/20 text-white/70 hover:text-white text-sm transition-colors"
+                  >
+                    Ver notas de versión
+                  </a>
+                </div>
+                <p className="text-xs text-white/40 mt-3">
+                  Requiere Windows 10/11 · Docker Desktop · Ejecutar como administrador
+                </p>
               </div>
             )}
           </div>

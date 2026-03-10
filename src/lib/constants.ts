@@ -18,6 +18,10 @@ export const ENTITLEMENT_PROJECTS: Record<string, string[]> = {
   'pos.basic': ['qubito'],
   'pos.pro': ['qubito'],
   'pos.enterprise': ['qubito'],
+  // Nexora — taller automotriz POS (instalador Windows)
+  'nexora.basic': ['nexora'],
+  'nexora.pro': ['nexora'],
+  'nexora.enterprise': ['nexora'],
   // Ejemplos para otras líneas de producto (ajusta según tu catálogo real)
   // 'sas.basic': ['nexia', 'nexora'],
   // 'sas.pro': ['nexia', 'nexora'],
