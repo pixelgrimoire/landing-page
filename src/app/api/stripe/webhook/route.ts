@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { mapPriceIdsToEntitlementsDb, revokeAllEntitlementsForCustomer, upsertUserEntitlements } from '@/lib/entitlements';
+import { ensureBillingAccountForCustomer, syncLegacyAppEntitlementsForCustomer } from '@/lib/appPlatform';
 import { prisma } from '@/lib/prisma';
 import { hashToken } from '@/lib/tokens';
 import { sendEmail } from '@/lib/email';
@@ -219,6 +220,8 @@ export async function POST(req: NextRequest) {
             status: sub.status,
             currentPeriodEnd: currentPeriodEndSec ?? undefined,
           });
+          await ensureBillingAccountForCustomer(customerId);
+          await syncLegacyAppEntitlementsForCustomer(customerId);
         }
         break;
       }
@@ -227,6 +230,8 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = String(sub.customer);
         await revokeAllEntitlementsForCustomer(customerId);
+        await ensureBillingAccountForCustomer(customerId);
+        await syncLegacyAppEntitlementsForCustomer(customerId);
         // Opcional: marcar subscripción como cancelada
         await prisma.subscription.update({
           where: { stripeId: sub.id },

@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { auth, clerkClient } from '@clerk/nextjs/server';
+import { ensureBillingAccountForCustomer } from '@/lib/appPlatform';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
       update: { email: stripeEmail || primaryEmail || undefined, userId: dbUser.id },
       create: { id: customerId, email: stripeEmail || primaryEmail || undefined, userId: dbUser.id },
     });
+    await ensureBillingAccountForCustomer(customerId);
 
     return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (e: unknown) {
@@ -51,4 +53,3 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
-

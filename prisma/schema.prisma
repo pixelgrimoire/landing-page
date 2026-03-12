@@ -21,6 +21,7 @@ model User {
 
   customers Customer[]
   claimTokens ClaimToken[]
+  billingAccounts BillingAccount[]
 }
 
 model Customer {
@@ -33,6 +34,24 @@ model Customer {
   subscriptions Subscription[]
   entitlements  Entitlement[]
   projectSelections ProjectSelection[]
+  billingAccount BillingAccount?
+}
+
+model BillingAccount {
+  id                String   @id @default(cuid())
+  customerId        String?  @unique
+  externalBillingId String?  @unique
+  provider          String   @default("stripe")
+  email             String?
+  ownerUserId       String?
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  customer     Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  ownerUser    User?          @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  entitlements AppEntitlement[]
+  instances    AppInstance[]
 }
 
 model Subscription {
@@ -74,6 +93,26 @@ model Entitlement {
   @@unique([customerId, code])
 }
 
+model AppEntitlement {
+  id                  String   @id @default(cuid())
+  billingAccountId    String
+  legacyEntitlementId String?  @unique
+  entitlementCode     String
+  appSlug             String
+  planCode            String
+  status              String
+  currentPeriodEnd    DateTime?
+  graceEndsAt         DateTime?
+  source              String   @default("legacy-sync")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  billingAccount BillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([billingAccountId, entitlementCode])
+  @@index([billingAccountId, appSlug])
+}
+
 model ClaimToken {
   id               String   @id @default(cuid())
   tokenHash        String   @unique
@@ -113,6 +152,57 @@ model ProjectSelection {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@unique([customerId, entitlementCode])
+}
+
+model AppInstance {
+  id               String   @id @default(cuid())
+  billingAccountId String
+  appSlug          String
+  instanceKey      String   @unique
+  displayName      String?
+  status           String   @default("active")
+  lastSeenAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  billingAccount BillingAccount          @relation(fields: [billingAccountId], references: [id], onDelete: Cascade)
+  bindings       AppInstanceBinding[]
+  externalAccess ExternalAccessProvision?
+
+  @@index([billingAccountId, appSlug])
+}
+
+model AppInstanceBinding {
+  id            String   @id @default(cuid())
+  appInstanceId String
+  bindingType   String
+  bindingValue  String
+  isPrimary     Boolean  @default(true)
+  metadataJson  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appInstance AppInstance @relation(fields: [appInstanceId], references: [id], onDelete: Cascade)
+
+  @@unique([bindingType, bindingValue])
+  @@unique([appInstanceId, bindingType, bindingValue])
+}
+
+model ExternalAccessProvision {
+  id                String   @id @default(cuid())
+  appInstanceId     String   @unique
+  provider          String   @default("cloudflare")
+  hostname          String?  @unique
+  tokenEncrypted    String?
+  enabled           Boolean  @default(false)
+  status            String   @default("not_configured")
+  lastProvisionedAt DateTime?
+  lastError         String?
+  configVersion     Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  appInstance AppInstance @relation(fields: [appInstanceId], references: [id], onDelete: Cascade)
 }
 
 model PlanConfig {
