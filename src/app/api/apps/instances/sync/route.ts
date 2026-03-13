@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolvePlatformBillingAccount } from '@/lib/appPlatformAuth'
+import { resolveLicenseValidUntil } from '@/lib/licenseWindow'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -50,10 +51,17 @@ export async function POST(req: NextRequest) {
         externalAccess: true,
       },
     })
+    const licenseValidUntil = billingAccount.customerId
+      ? await resolveLicenseValidUntil({
+          customerId: billingAccount.customerId,
+          entitlementCurrentPeriodEnd: null,
+        })
+      : null
 
     return new Response(
       JSON.stringify({
         ok: true,
+        licenseValidUntil: licenseValidUntil?.toISOString() || null,
         billingAccount: {
           id: billingAccount.id,
           customerId: billingAccount.customerId,

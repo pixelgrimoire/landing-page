@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { ensureAppInstance, serializePlatformState, syncLegacyAppEntitlementsForCustomer } from '@/lib/appPlatform'
 import { resolvePlatformBillingAccount } from '@/lib/appPlatformAuth'
+import { resolveLicenseValidUntil } from '@/lib/licenseWindow'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,10 +40,17 @@ export async function POST(req: NextRequest) {
       bindingType: body.bindingType,
       bindingValue: body.bindingValue,
     })
+    const licenseValidUntil = billingAccount.customerId
+      ? await resolveLicenseValidUntil({
+          customerId: billingAccount.customerId,
+          entitlementCurrentPeriodEnd: entitlement.currentPeriodEnd,
+        })
+      : null
 
     return new Response(
       JSON.stringify({
         ok: true,
+        licenseValidUntil: licenseValidUntil?.toISOString() || null,
         ...serializePlatformState({
           billingAccount: {
             id: billingAccount.id,
