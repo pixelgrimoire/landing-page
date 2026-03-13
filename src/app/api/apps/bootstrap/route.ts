@@ -7,6 +7,7 @@ import {
 import { resolvePlatformBillingAccount } from '@/lib/appPlatformAuth'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 type BootstrapBody = {
   billingAccountId?: string

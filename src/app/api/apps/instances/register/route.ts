@@ -3,6 +3,7 @@ import { ensureAppInstance, serializePlatformState, syncLegacyAppEntitlementsFor
 import { resolvePlatformBillingAccount } from '@/lib/appPlatformAuth'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 type RegisterBody = {
   billingAccountId?: string

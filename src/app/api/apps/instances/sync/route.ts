@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { resolvePlatformBillingAccount } from '@/lib/appPlatformAuth'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 type SyncBody = {
   billingAccountId?: string
