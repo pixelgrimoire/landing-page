@@ -17,6 +17,7 @@ const isPublicRoute = createRouteMatcher([
   '/featured(.*)',
   // Diagnostics
   '/api/whoami',
+  '/auth/reverify(.*)',
   // Note: project selection endpoints are not public; keep them protected
   '/_next/image(.*)',
   '/_next/static(.*)',
