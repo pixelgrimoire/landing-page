@@ -27,6 +27,8 @@ export default function SubscriptionManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState('');
 
   const nextRenewal = useMemo(() => {
     const iso = data?.subscription?.currentPeriodEnd;
@@ -63,6 +65,11 @@ export default function SubscriptionManager() {
   }
 
   useEffect(() => { load(); }, []);
+
+  const hasQubitoEntitlement = useMemo(
+    () => data?.entitlements.some((e) => e.code.startsWith('pos.') && ['active', 'trialing', 'past_due'].includes(e.status)) ?? false,
+    [data]
+  );
 
   const toggleCancel = async () => {
     if (!data?.subscription) return;
@@ -113,6 +120,30 @@ export default function SubscriptionManager() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error inesperado');
     } finally { setSaving(false); }
+  };
+
+  const generateRecoveryToken = async () => {
+    setRecoveryLoading(true); setError(null);
+    try {
+      const res = await fetch('/api/qubito/recovery-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error || 'No se pudo generar el código');
+      setRecoveryToken(j.token || '');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error inesperado');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  const copyRecoveryToken = async () => {
+    if (!recoveryToken) return;
+    try {
+      await navigator.clipboard.writeText(recoveryToken);
+    } catch {}
   };
 
   return (
@@ -172,6 +203,42 @@ export default function SubscriptionManager() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {hasQubitoEntitlement && (
+            <div className="rounded-lg p-4 border border-white/10 bg-white/5">
+              <div className="font-semibold mb-2">Recuperación de administrador local para Qubito</div>
+              <p className="text-sm text-white/70 mb-3">
+                Genera un código temporal de 10 minutos y pégalo en la pantalla de login de Qubito para restablecer la contraseña del administrador local.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={generateRecoveryToken}
+                  disabled={recoveryLoading}
+                  className="px-3 py-2 rounded bg-sky-600 text-white font-semibold disabled:opacity-60"
+                >
+                  {recoveryLoading ? 'Generando…' : 'Generar código de recuperación'}
+                </button>
+                {recoveryToken ? (
+                  <button
+                    onClick={copyRecoveryToken}
+                    className="px-3 py-2 rounded border border-white/20 text-white/80"
+                  >
+                    Copiar código
+                  </button>
+                ) : null}
+              </div>
+              {recoveryToken ? (
+                <div className="mt-3">
+                  <div className="text-xs text-white/50 mb-2">Este código vence en 10 minutos.</div>
+                  <textarea
+                    readOnly
+                    value={recoveryToken}
+                    className="w-full min-h-24 rounded bg-black/20 border border-white/10 px-3 py-2 text-xs text-white/80"
+                  />
+                </div>
+              ) : null}
             </div>
           )}
         </div>
