@@ -66,8 +66,12 @@ export default function SubscriptionManager() {
 
   useEffect(() => { load(); }, []);
 
-  const hasQubitoEntitlement = useMemo(
-    () => data?.entitlements.some((e) => e.code.startsWith('pos.') && ['active', 'trialing', 'past_due'].includes(e.status)) ?? false,
+  const hasActiveQubitoProject = useMemo(
+    () => data?.entitlements.some((e) => {
+      if (!e.code.startsWith('pos.') || !['active', 'trialing', 'past_due'].includes(e.status)) return false;
+      const selection = data?.selections?.find((s) => s.entitlementCode === e.code)?.selection;
+      return (selection?.currentProject || '').trim().toLowerCase() === 'qubito';
+    }) ?? false,
     [data]
   );
 
@@ -206,7 +210,7 @@ export default function SubscriptionManager() {
             </div>
           )}
 
-          {hasQubitoEntitlement && (
+          {hasActiveQubitoProject && (
             <div className="rounded-lg p-4 border border-white/10 bg-white/5">
               <div className="font-semibold mb-2">Recuperación de administrador local para Qubito</div>
               <p className="text-sm text-white/70 mb-3">
