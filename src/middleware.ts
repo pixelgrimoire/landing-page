@@ -11,6 +11,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/subscribe(.*)',
   '/api/plans(.*)',
   '/api/entitlements(.*)',
+  '/api/apps(.*)',
   // Public featured projects (listing + HTML view + React demo)
   '/api/featured(.*)',
   '/featured(.*)',
