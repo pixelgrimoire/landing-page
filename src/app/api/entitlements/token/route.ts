@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { signJwtHS256 } from '@/lib/jwt';
+import { resolveLicenseValidUntil } from '@/lib/licenseWindow';
 
 export const runtime = 'nodejs';
 
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
 
     const activeEnts = await prisma.entitlement.findMany({ where: { customerId: user.stripeCustomerId, status: { in: ['active','trialing','past_due'] } } });
     const entitlements = activeEnts.map(e => e.code);
+    let scopedEntitlement = requestedEntitlement
+      ? activeEnts.find((e) => e.code === requestedEntitlement)
+      : activeEnts[0];
 
     // If audience is requested, ensure it matches the user's current selection for that entitlement
     let aud: string | undefined = undefined;
@@ -65,6 +69,7 @@ export async function POST(req: NextRequest) {
         return new Response(JSON.stringify({ error: 'Audience not allowed for current period' }), { status: 403, headers: baseHeaders });
       }
       aud = requestedAud;
+      scopedEntitlement = activeEnts.find((e) => e.code === entitlementCode) || scopedEntitlement;
     }
 
     const secret = process.env.ENTITLEMENTS_JWT_SECRET;
@@ -80,6 +85,12 @@ export async function POST(req: NextRequest) {
       iss: 'pixelgrimoire.com',
     };
     if (aud) payload.aud = aud;
+    const licenseValidUntil = await resolveLicenseValidUntil({
+      customerId: user.stripeCustomerId,
+      entitlementCurrentPeriodEnd: scopedEntitlement?.currentPeriodEnd,
+    });
+    if (licenseValidUntil) payload.licenseValidUntil = licenseValidUntil.toISOString();
+    if (scopedEntitlement?.status) payload.licenseStatus = scopedEntitlement.status;
 
     const token = signJwtHS256(payload, secret);
     return new Response(

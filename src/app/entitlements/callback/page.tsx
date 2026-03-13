@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { signJwtHS256 } from '@/lib/jwt';
 import type { Metadata } from 'next';
+import { resolveLicenseValidUntil } from '@/lib/licenseWindow';
 
 export const runtime = 'nodejs';
 
@@ -40,6 +41,9 @@ export default async function Page({ searchParams }: Props) {
       } else {
         const activeEnts = await prisma.entitlement.findMany({ where: { customerId: user.stripeCustomerId, status: { in: ['active','trialing','past_due'] } } });
         const entitlements = activeEnts.map((e) => e.code);
+        let scopedEntitlement = entitlementCode
+          ? activeEnts.find((e) => e.code === entitlementCode)
+          : activeEnts[0];
 
         // If audience is requested, ensure it matches the user's current selection for that entitlement
         if (requestedAud) {
@@ -66,6 +70,7 @@ export default async function Page({ searchParams }: Props) {
             if (!current || current.toLowerCase() !== requestedAud) {
               payload.error = 'Audience not allowed for current period';
             }
+            scopedEntitlement = activeEnts.find((e) => e.code === code) || scopedEntitlement;
           }
         }
 
@@ -85,6 +90,12 @@ export default async function Page({ searchParams }: Props) {
             iss: 'pixelgrimoire.com',
           };
           if (requestedAud) claims.aud = requestedAud;
+          const licenseValidUntil = await resolveLicenseValidUntil({
+            customerId: user.stripeCustomerId,
+            entitlementCurrentPeriodEnd: scopedEntitlement?.currentPeriodEnd,
+          });
+          if (licenseValidUntil) claims.licenseValidUntil = licenseValidUntil.toISOString();
+          if (scopedEntitlement?.status) claims.licenseStatus = scopedEntitlement.status;
           const token = signJwtHS256(claims, secret);
           payload = { token, entitlements, customerId: user.stripeCustomerId, expiresIn: 600 };
         }
