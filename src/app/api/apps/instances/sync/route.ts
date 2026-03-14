@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolvePlatformBillingAccount } from '@/lib/appPlatformAuth'
 import { resolveLicenseValidUntil } from '@/lib/licenseWindow'
+import { resolveTargetEntitlement, syncLegacyAppEntitlementsForCustomer } from '@/lib/appPlatform'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,6 +11,8 @@ type SyncBody = {
   billingAccountId?: string
   customerId?: string
   instanceKey?: string
+  appSlug?: string
+  entitlementCode?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -20,6 +23,10 @@ export async function POST(req: NextRequest) {
       customerId: body.customerId,
       reqApiKey: req.headers.get('x-api-key') || '',
     })
+
+    if (billingAccount.customerId) {
+      await syncLegacyAppEntitlementsForCustomer(billingAccount.customerId)
+    }
 
     if (!body.instanceKey?.trim()) {
       return new Response(JSON.stringify({ error: 'instanceKey is required' }), {
@@ -43,6 +50,23 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    let entitlement
+    try {
+      const resolved = await resolveTargetEntitlement({
+        billingAccountId: billingAccount.id,
+        customerId: billingAccount.customerId,
+        appSlug: body.appSlug || instance.appSlug,
+        entitlementCode: body.entitlementCode,
+      })
+      entitlement = resolved.entitlement
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Requested app is not active for the current billing period'
+      return new Response(JSON.stringify({ error: message }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const updated = await prisma.appInstance.update({
       where: { id: instance.id },
       data: { lastSeenAt: new Date(), status: 'active' },
@@ -54,7 +78,7 @@ export async function POST(req: NextRequest) {
     const licenseValidUntil = billingAccount.customerId
       ? await resolveLicenseValidUntil({
           customerId: billingAccount.customerId,
-          entitlementCurrentPeriodEnd: null,
+          entitlementCurrentPeriodEnd: entitlement.currentPeriodEnd,
         })
       : null
 
@@ -62,6 +86,14 @@ export async function POST(req: NextRequest) {
       JSON.stringify({
         ok: true,
         licenseValidUntil: licenseValidUntil?.toISOString() || null,
+        entitlement: {
+          entitlementCode: entitlement.entitlementCode,
+          appSlug: entitlement.appSlug,
+          planCode: entitlement.planCode,
+          status: entitlement.status,
+          currentPeriodEnd: entitlement.currentPeriodEnd?.toISOString() || null,
+          graceEndsAt: entitlement.graceEndsAt?.toISOString() || null,
+        },
         billingAccount: {
           id: billingAccount.id,
           customerId: billingAccount.customerId,

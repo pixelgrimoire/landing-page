@@ -155,7 +155,7 @@ async function getEffectiveSelection(customerId: string, entitlementCode: string
   return selection
 }
 
-async function resolveTargetEntitlement(params: {
+export async function resolveTargetEntitlement(params: {
   billingAccountId: string
   customerId: string | null | undefined
   appSlug?: string
