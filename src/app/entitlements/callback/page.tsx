@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { signJwtHS256 } from '@/lib/jwt';
 import type { Metadata } from 'next';
 import { resolveLicenseValidUntil } from '@/lib/licenseWindow';
+import { isAppSpecificEntitlement, matchesAppEntitlement, normalizeEntitlementCodeForApp } from '@/lib/licenseApps';
 
 export const runtime = 'nodejs';
 
@@ -43,31 +44,37 @@ export default async function Page({ searchParams }: Props) {
         const entitlements = activeEnts.map((e) => e.code);
         let scopedEntitlement = entitlementCode
           ? activeEnts.find((e) => e.code === entitlementCode)
-          : activeEnts[0];
+          : requestedAud
+            ? activeEnts.find((e) => matchesAppEntitlement(e.code, requestedAud))
+            : activeEnts[0];
 
         // If audience is requested, ensure it matches the user's current selection for that entitlement
         if (requestedAud) {
-          const code = entitlementCode || entitlements[0];
+          const code = scopedEntitlement?.code || entitlementCode || entitlements[0];
           if (!code) {
             payload.error = 'No entitlement available for audience scoping';
           } else {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const p: any = prisma as any;
-            const sel = await p.projectSelection
-              .findUnique({ where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode: code } } })
-              .catch(() => null);
-            const now = new Date();
-            let current = sel?.currentProject as string | null | undefined;
-            if (sel?.pendingProject && sel.pendingEffectiveAt && sel.pendingEffectiveAt <= now) {
-              current = sel.pendingProject;
-              try {
-                await p.projectSelection.update({
-                  where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode: code } },
-                  data: { currentProject: current, pendingProject: null, pendingEffectiveAt: null },
-                });
-              } catch {}
-            }
-            if (!current || current.toLowerCase() !== requestedAud) {
+            if (!isAppSpecificEntitlement(code)) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const p: any = prisma as any;
+              const sel = await p.projectSelection
+                .findUnique({ where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode: code } } })
+                .catch(() => null);
+              const now = new Date();
+              let current = sel?.currentProject as string | null | undefined;
+              if (sel?.pendingProject && sel.pendingEffectiveAt && sel.pendingEffectiveAt <= now) {
+                current = sel.pendingProject;
+                try {
+                  await p.projectSelection.update({
+                    where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode: code } },
+                    data: { currentProject: current, pendingProject: null, pendingEffectiveAt: null },
+                  });
+                } catch {}
+              }
+              if (!current || current.toLowerCase() !== requestedAud) {
+                payload.error = 'Audience not allowed for current period';
+              }
+            } else if (!matchesAppEntitlement(code, requestedAud)) {
               payload.error = 'Audience not allowed for current period';
             }
             scopedEntitlement = activeEnts.find((e) => e.code === code) || scopedEntitlement;
@@ -94,6 +101,7 @@ export default async function Page({ searchParams }: Props) {
             customerId: user.stripeCustomerId,
             entitlementCurrentPeriodEnd: scopedEntitlement?.currentPeriodEnd,
           });
+          if (scopedEntitlement?.code) claims.entitlementCode = normalizeEntitlementCodeForApp(scopedEntitlement.code, requestedAud);
           if (licenseValidUntil) claims.licenseValidUntil = licenseValidUntil.toISOString();
           if (scopedEntitlement?.status) claims.licenseStatus = scopedEntitlement.status;
           const token = signJwtHS256(claims, secret);

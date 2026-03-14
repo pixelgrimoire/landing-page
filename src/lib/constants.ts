@@ -14,14 +14,18 @@ export const PROJECTS: ProjectOption[] = [
 // Opcional: restringe qué proyectos se pueden elegir por entitlement.
 // Si un entitlement no aparece aquí, se mostrarán todos los proyectos por defecto.
 export const ENTITLEMENT_PROJECTS: Record<string, string[]> = {
-  // Todos los códigos "pos.*" apuntan a Qubito POS por defecto
+  // Compat legacy
   'pos.basic': ['qubito'],
   'pos.pro': ['qubito'],
   'pos.enterprise': ['qubito'],
-  // Nexora — taller automotriz POS (instalador Windows)
-  'nexora.basic': ['nexora'],
-  'nexora.pro': ['nexora'],
-  'nexora.enterprise': ['nexora'],
+  // Qubito
+  'qubito.apprentice': ['qubito'],
+  'qubito.mage': ['qubito'],
+  'qubito.archmage': ['qubito'],
+  // Nexora
+  'nexora.apprentice': ['nexora'],
+  'nexora.mage': ['nexora'],
+  'nexora.archmage': ['nexora'],
   // Ejemplos para otras líneas de producto (ajusta según tu catálogo real)
   // 'sas.basic': ['nexia', 'nexora'],
   // 'sas.pro': ['nexia', 'nexora'],

@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { signJwtHS256 } from '@/lib/jwt';
+import { matchesAppEntitlement } from '@/lib/licenseApps';
 
 export const runtime = 'nodejs';
 
@@ -27,11 +28,11 @@ export async function POST(_req: NextRequest) {
       where: {
         customerId: user.stripeCustomerId,
         status: { in: ['active', 'trialing', 'past_due'] },
-        code: { startsWith: 'pos.' },
       },
     });
     const entitlements = activeEnts.map((e) => e.code);
-    if (!entitlements.includes('pos.basic')) {
+    const qubitoEntitlements = entitlements.filter((code) => matchesAppEntitlement(code, 'qubito') || code.startsWith('pos.'));
+    if (qubitoEntitlements.length === 0) {
       return new Response(JSON.stringify({ error: 'Missing Qubito entitlement' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
@@ -50,7 +51,7 @@ export async function POST(_req: NextRequest) {
     const payload: Record<string, unknown> = {
       sub: userId,
       customerId: user.stripeCustomerId,
-      entitlements,
+      entitlements: qubitoEntitlements,
       purpose: 'qubito_local_recovery',
       iat: now,
       exp: now + 60 * 10,

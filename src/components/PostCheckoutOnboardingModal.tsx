@@ -26,7 +26,14 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [cid, setCid] = useState<string | null>(customerId || null);
-  const canProceed = useMemo(() => entitlements.length > 0 && entitlements.every(code => !!choices[code]), [entitlements, choices]);
+  const selectableEntitlements = useMemo(
+    () => entitlements.filter((code) => code.startsWith('pos.')),
+    [entitlements]
+  );
+  const canProceed = useMemo(
+    () => selectableEntitlements.length > 0 && selectableEntitlements.every(code => !!choices[code]),
+    [choices, selectableEntitlements]
+  );
   const qubitoUrl = (process.env.NEXT_PUBLIC_QUBITO_URL || '').trim();
   const qubitoLink = useMemo(() => {
     if (!qubitoUrl || !cid) return '';
@@ -117,7 +124,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
   const saveProjects = async () => {
     setSaving(true); setError(null);
     try {
-      for (const code of entitlements) {
+      for (const code of selectableEntitlements) {
         const proj = choices[code];
         if (!proj) continue;
         const res = await fetch('/api/projects/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entitlementCode: code, project: proj }) });
@@ -185,11 +192,11 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
                 <h3 className="font-semibold mb-2">Elige tus proyectos</h3>
                 <p className="text-white/70 text-sm mb-4">Según tu suscripción, selecciona el proyecto activo para cada entitlement.</p>
                 {error && <div className="text-red-300 mb-2">{error}</div>}
-                {entitlements.length === 0 ? (
-                  <div className="text-white/70">No encontramos entitlements activos. Puedes saltar este paso.</div>
-                ) : (
-                  <div className="space-y-4">
-                    {entitlements.map(code => (
+                  {selectableEntitlements.length === 0 ? (
+                    <div className="text-white/70">No encontramos entitlements activos. Puedes saltar este paso.</div>
+                  ) : (
+                    <div className="space-y-4">
+                    {selectableEntitlements.map(code => (
                       <div key={code} className="bg-white/5 border border-white/10 rounded p-3">
                         <div className="text-sm text-white/70 mb-2">Entitlement: <span className="text-white">{code}</span></div>
                         <div className="grid grid-cols-2 gap-2">
@@ -204,7 +211,7 @@ export default function PostCheckoutOnboardingModal({ open, customerId, onClose 
                   </div>
                 )}
                 <div className="mt-4 flex gap-2">
-                  <button onClick={saveProjects} disabled={saving || (entitlements.length>0 && !canProceed)} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold disabled:opacity-60">{saving ? 'Guardando…' : 'Guardar y continuar'}</button>
+                  <button onClick={saveProjects} disabled={saving || (selectableEntitlements.length>0 && !canProceed)} className="px-4 py-2 rounded bg-yellow-400 text-black font-semibold disabled:opacity-60">{saving ? 'Guardando…' : 'Guardar y continuar'}</button>
                   <button onClick={() => router.push('/')} className="px-4 py-2 rounded border border-white/10 bg-white/5 text-white/80">Hacerlo después</button>
                 </div>
               </div>

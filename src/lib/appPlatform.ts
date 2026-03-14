@@ -1,4 +1,12 @@
 import { prisma } from '@/lib/prisma'
+import {
+  getEntitlementPlanLevel,
+  getEntitlementAppSlug,
+  isAppSpecificEntitlement,
+  isLegacyProjectSelectionEntitlement,
+  matchesAppEntitlement,
+  normalizeEntitlementCodeForApp,
+} from '@/lib/licenseApps'
 
 const USABLE_ENTITLEMENT_STATUSES = new Set(['active', 'trialing', 'past_due'])
 
@@ -16,9 +24,7 @@ export type AppBootstrapInput = {
 }
 
 function normalizeAppSlugFromEntitlement(code: string): string {
-  const prefix = code.trim().toLowerCase().split('.')[0] || ''
-  if (prefix === 'pos') return 'qubito'
-  return prefix
+  return getEntitlementAppSlug(code) || code.trim().toLowerCase().split('.')[0] || ''
 }
 
 function isUsableStatus(status: string | null | undefined): boolean {
@@ -93,13 +99,21 @@ export async function syncLegacyAppEntitlementsForCustomer(customerId: string) {
   const legacy = await prisma.entitlement.findMany({ where: { customerId } })
 
   for (const row of legacy) {
+    let normalizedCode = row.code
+    if (isLegacyProjectSelectionEntitlement(row.code)) {
+      const selection = await getEffectiveSelection(customerId, row.code)
+      normalizedCode = normalizeEntitlementCodeForApp(row.code, selection?.currentProject || undefined)
+    } else if (getEntitlementPlanLevel(row.code)) {
+      normalizedCode = normalizeEntitlementCodeForApp(row.code)
+    }
+
     await prisma.appEntitlement.upsert({
       where: { legacyEntitlementId: row.id },
       update: {
         billingAccountId: billingAccount.id,
-        entitlementCode: row.code,
-        appSlug: normalizeAppSlugFromEntitlement(row.code),
-        planCode: row.code,
+        entitlementCode: normalizedCode,
+        appSlug: normalizeAppSlugFromEntitlement(normalizedCode),
+        planCode: normalizedCode,
         status: row.status,
         currentPeriodEnd: row.currentPeriodEnd ?? undefined,
         source: 'legacy-sync',
@@ -107,9 +121,9 @@ export async function syncLegacyAppEntitlementsForCustomer(customerId: string) {
       create: {
         billingAccountId: billingAccount.id,
         legacyEntitlementId: row.id,
-        entitlementCode: row.code,
-        appSlug: normalizeAppSlugFromEntitlement(row.code),
-        planCode: row.code,
+        entitlementCode: normalizedCode,
+        appSlug: normalizeAppSlugFromEntitlement(normalizedCode),
+        planCode: normalizedCode,
         status: row.status,
         currentPeriodEnd: row.currentPeriodEnd ?? undefined,
         source: 'legacy-sync',
@@ -171,20 +185,30 @@ export async function resolveTargetEntitlement(params: {
     (params.entitlementCode
       ? usable.find((row) => row.entitlementCode === params.entitlementCode)
       : undefined) ||
-    (params.appSlug ? usable.find((row) => row.appSlug === params.appSlug) : undefined) ||
+    (params.appSlug ? usable.find((row) => matchesAppEntitlement(row.entitlementCode, params.appSlug)) : undefined) ||
     usable[0]
 
   if (!entitlement) throw new Error('No active entitlement available')
 
   const allowedProjects = await getAllowedProjectsMap()
+  const requestedApp = (params.appSlug || '').trim().toLowerCase()
+  const entitlementAppSlug = getEntitlementAppSlug(entitlement.entitlementCode) || entitlement.appSlug
+
+  if (isAppSpecificEntitlement(entitlement.entitlementCode)) {
+    if (requestedApp && requestedApp !== entitlementAppSlug) {
+      throw new Error('Requested app is not active for the current billing period')
+    }
+
+    return { entitlement, resolvedAppSlug: entitlementAppSlug }
+  }
+
   const selection = params.customerId
     ? await getEffectiveSelection(params.customerId, entitlement.entitlementCode)
     : null
 
   const allowed = allowedProjects[entitlement.entitlementCode] || []
   const selectedApp = selection?.currentProject?.trim().toLowerCase() || ''
-  const requestedApp = (params.appSlug || '').trim().toLowerCase()
-  const resolvedAppSlug = requestedApp || selectedApp || allowed[0] || entitlement.appSlug
+  const resolvedAppSlug = requestedApp || selectedApp || allowed[0] || entitlementAppSlug
 
   if (selectedApp && resolvedAppSlug !== selectedApp) {
     throw new Error('Requested app is not active for the current billing period')

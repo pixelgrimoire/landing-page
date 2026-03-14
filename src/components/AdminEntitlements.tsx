@@ -120,7 +120,7 @@ export default function AdminEntitlements() {
           </tbody>
         </table>
       </div>
-      <div className="text-[11px] text-white/50">Sugerencia: usa códigos estables (p.ej. pos.basic, sas.pro). Se otorgan por priceId → planId en el webhook o por fallback cuando no llega el webhook en local.</div>
+      <div className="text-[11px] text-white/50">Sugerencia: usa códigos estables por producto y nivel (p.ej. qubito.apprentice, nexora.mage). Se otorgan por priceId → planId en el webhook o por fallback cuando no llega el webhook en local.</div>
     </div>
   );
 }

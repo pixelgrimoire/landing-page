@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export type EntitlementGrant = {
   stripeCustomerId: string;
-  entitlements: string[]; // p.ej. ["pos.basic", "sas.pro"]
+  entitlements: string[]; // p.ej. ["qubito.apprentice", "nexora.mage"]
   status: string; // p.ej. "active", "trialing", "past_due"
   currentPeriodEnd?: number; // epoch seconds
   customerEmail?: string | null; // si lo tenemos desde Stripe

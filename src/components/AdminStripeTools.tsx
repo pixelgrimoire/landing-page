@@ -274,7 +274,7 @@ export default function AdminStripeTools() {
           <textarea value={featuresText} onChange={e=>setFeaturesText(e.target.value)} rows={4} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />
         </label>
         <label className="text-xs col-span-2">Entitlements (códigos, uno por línea)
-          <textarea value={entitlementsText} onChange={e=>setEntitlementsText(e.target.value)} rows={3} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" placeholder="pos.basic\nsas.pro" />
+          <textarea value={entitlementsText} onChange={e=>setEntitlementsText(e.target.value)} rows={3} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" placeholder="qubito.apprentice\nnexora.mage" />
         </label>
         <label className="text-xs">Mensual (USD)
           <input value={amountM} onChange={e=>setAmountM(e.target.value)} placeholder={view==='edit' ? 'Dejar vacío para conservar' : ''} className="w-full mt-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-sm" />

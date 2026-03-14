@@ -14,8 +14,6 @@ const PROJECTS = [
   { slug: 'soja', label: 'Soja' },
 ];
 
-const DEFAULT_ENTITLEMENT = 'pos.basic';
-
 export default function OnboardAfterPurchaseModal({ open, onClose }: Props) {
   const { isSignedIn } = useUser();
   const [step, setStep] = useState<'signup'|'link'|'select'|'done'>(isSignedIn ? 'link' : 'signup');
@@ -69,16 +67,21 @@ export default function OnboardAfterPurchaseModal({ open, onClose }: Props) {
   }, [open, isSignedIn, step]);
 
   const needsProjectChoice = useMemo(() => {
-    return (entitlements || []).includes(DEFAULT_ENTITLEMENT);
+    return (entitlements || []).some((code) => code.startsWith('pos.'));
   }, [entitlements]);
 
   async function saveProject() {
     setSaving(true); setError(null);
     try {
       if (!chosen) throw new Error('Elige un proyecto');
+      const legacyEntitlement = (entitlements || []).find((code) => code.startsWith('pos.'));
+      if (!legacyEntitlement) {
+        setStep('done');
+        return;
+      }
       const res = await fetch('/api/projects/select', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entitlementCode: DEFAULT_ENTITLEMENT, project: chosen })
+        body: JSON.stringify({ entitlementCode: legacyEntitlement, project: chosen })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'No se pudo guardar');

@@ -12,7 +12,7 @@ type Selection = {
   pendingEffectiveAt: string | null;
 };
 
-// Assumption: Apprentice => entitlementCode 'pos.basic'. Adjust if different in your env vars.
+// Legacy helper page: project selection now only applies to old shared POS entitlements.
 const DEFAULT_ENTITLEMENT = 'pos.basic';
 
 export default function ProjectSelectionPage() {
@@ -76,7 +76,7 @@ export default function ProjectSelectionPage() {
         <div className="mb-4">
           <label className="block text-sm text-white/70 mb-2">Entitlement</label>
           <input value={entitlementCode} onChange={(e)=>setEntitlementCode(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2" />
-          <p className="text-xs text-white/40 mt-1">Por defecto usamos <code>pos.basic</code> (Apprentice). Ajusta si tu mapping es distinto.</p>
+          <p className="text-xs text-white/40 mt-1">Esta pantalla solo aplica a licencias legadas compartidas. Las nuevas licencias específicas por app ya no requieren selección de proyecto.</p>
         </div>
 
         <div className="mb-6">

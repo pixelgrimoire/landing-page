@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { signJwtHS256 } from '@/lib/jwt';
 import { resolveLicenseValidUntil } from '@/lib/licenseWindow';
+import { isAppSpecificEntitlement, matchesAppEntitlement, normalizeEntitlementCodeForApp } from '@/lib/licenseApps';
 
 export const runtime = 'nodejs';
 
@@ -47,25 +48,31 @@ export async function POST(req: NextRequest) {
     const entitlements = activeEnts.map(e => e.code);
     let scopedEntitlement = requestedEntitlement
       ? activeEnts.find((e) => e.code === requestedEntitlement)
-      : activeEnts[0];
+      : requestedAud
+        ? activeEnts.find((e) => matchesAppEntitlement(e.code, requestedAud))
+        : activeEnts[0];
 
     // If audience is requested, ensure it matches the user's current selection for that entitlement
     let aud: string | undefined = undefined;
     if (requestedAud) {
-      const entitlementCode = requestedEntitlement || entitlements[0]; // choose first if not provided
+      const entitlementCode = scopedEntitlement?.code || requestedEntitlement || entitlements[0];
       if (!entitlementCode) return new Response(JSON.stringify({ error: 'No entitlement available for audience scoping' }), { status: 400, headers: baseHeaders });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p: any = prisma as any;
-      const sel = await p.projectSelection.findUnique({ where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode } } }).catch(() => null);
-      const now = new Date();
-      let current = sel?.currentProject as string | null | undefined;
-      if (sel?.pendingProject && sel.pendingEffectiveAt && sel.pendingEffectiveAt <= now) {
-        current = sel.pendingProject;
-        try {
-          await p.projectSelection.update({ where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode } }, data: { currentProject: current, pendingProject: null, pendingEffectiveAt: null } });
-        } catch {}
-      }
-      if (!current || current !== requestedAud) {
+      if (!isAppSpecificEntitlement(entitlementCode)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p: any = prisma as any;
+        const sel = await p.projectSelection.findUnique({ where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode } } }).catch(() => null);
+        const now = new Date();
+        let current = sel?.currentProject as string | null | undefined;
+        if (sel?.pendingProject && sel.pendingEffectiveAt && sel.pendingEffectiveAt <= now) {
+          current = sel.pendingProject;
+          try {
+            await p.projectSelection.update({ where: { customerId_entitlementCode: { customerId: user.stripeCustomerId, entitlementCode } }, data: { currentProject: current, pendingProject: null, pendingEffectiveAt: null } });
+          } catch {}
+        }
+        if (!current || current !== requestedAud) {
+          return new Response(JSON.stringify({ error: 'Audience not allowed for current period' }), { status: 403, headers: baseHeaders });
+        }
+      } else if (!matchesAppEntitlement(entitlementCode, requestedAud)) {
         return new Response(JSON.stringify({ error: 'Audience not allowed for current period' }), { status: 403, headers: baseHeaders });
       }
       aud = requestedAud;
@@ -89,6 +96,7 @@ export async function POST(req: NextRequest) {
       customerId: user.stripeCustomerId,
       entitlementCurrentPeriodEnd: scopedEntitlement?.currentPeriodEnd,
     });
+    if (scopedEntitlement?.code) payload.entitlementCode = normalizeEntitlementCodeForApp(scopedEntitlement.code, aud);
     if (licenseValidUntil) payload.licenseValidUntil = licenseValidUntil.toISOString();
     if (scopedEntitlement?.status) payload.licenseStatus = scopedEntitlement.status;
 

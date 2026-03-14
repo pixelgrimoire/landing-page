@@ -68,10 +68,20 @@ export default function SubscriptionManager() {
 
   const hasActiveQubitoProject = useMemo(
     () => data?.entitlements.some((e) => {
-      if (!e.code.startsWith('pos.') || !['active', 'trialing', 'past_due'].includes(e.status)) return false;
+      if (!['active', 'trialing', 'past_due'].includes(e.status)) return false;
+      if (e.code.startsWith('qubito.')) return true;
+      if (!e.code.startsWith('pos.')) return false;
       const selection = data?.selections?.find((s) => s.entitlementCode === e.code)?.selection;
       return (selection?.currentProject || '').trim().toLowerCase() === 'qubito';
     }) ?? false,
+    [data]
+  );
+
+  const selectableEntitlements = useMemo(
+    () => (data?.entitlements || []).filter((e) => {
+      const selection = data?.selections?.find((s) => s.entitlementCode === e.code)?.selection;
+      return Boolean(selection?.currentProject || selection?.pendingProject);
+    }),
     [data]
   );
 
@@ -183,10 +193,10 @@ export default function SubscriptionManager() {
             )}
           </div>
 
-          {data.entitlements.length > 0 && (
+          {selectableEntitlements.length > 0 && (
             <div className="rounded-lg p-4 border border-white/10 bg-white/5">
               <div className="font-semibold mb-2">Proyecto activo</div>
-              {data.entitlements.map(e => {
+              {selectableEntitlements.map(e => {
                 const sel = selectionFor(e.code);
                 const msg = messageForProject(e.code);
                 const disabled = saving || !canChangeProject(e.code);
